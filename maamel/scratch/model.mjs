@@ -1,0 +1,55 @@
+import {run,assess,near,polygon} from './runtime.mjs';
+export const tasks=[
+ ['space','مشهد الفضاء',128,'اختر خلفية الفضاء، وضع القطة في المنتصف وسم المشروع «الفضاء».'],
+ ['football','كرة القدم',128,'اختر ملعب كرة القدم، واسحب القطة إلى اليسار وسمّ المشروع «كرة القدم».'],
+ ['speak','فقاعة الترحيب',132,'عند نقر العلم، اجعل القطة تقول «مرحبا بكم في سكراتش» لخمس ثوانٍ.'],
+ ['bird','صوت العصفور',140,'حرّك القطة ٣٠ خطوة، واجعلها تقول «لنستمع لصوت العصفور» وتشغّل صوت العصفور.'],
+ ['greet','تحية ثم حركة',140,'عند العلم قل «السلام عليكم»، ثم تحرك ٣٠ خطوة إلى الأمام.'],
+ ['turn','استدارة القطة',140,'استدر مع عقارب الساعة ٤٠ درجة ثم قل «أنا أستدير».'],
+ ['picnic','نزهتي',140,'قل «لنقم بنزهة»، وشغّل صوتًا ثم تحرّك ٢٠٠ خطوة.'],
+ ['loop','التكرار الثابت',142,'داخل لبنة كرّر، حرّك القطة ٥ خطوات في كل دورة، عشر مرات.'],
+ ['walk','قطة تمشي',145,'سمّ المشروع «قطة تمشي»، واختر خلفية العشب. ضع القطة يسار المنصة ثم كرّر حركتها وكلامها خمس مرات.'],
+ ['turns','كيفية الاستدارة',146,'سمّ المشروع «كيفية الاستدارة». كرّر ست مرات بالترتيب: قل «سأستدير إلى اليمين»، استدر يمينًا، قل «سأستدير إلى اليسار»، ثم استدر يسارًا.'],
+ ['line','أول خط بالقلم',148,'أنزل القلم وارسم خطًا مستقيمًا طوله ١٥٠ خطوة.'],
+ ['square','مربّع بالتكرار',152,'أنزل القلم وكرّر الحركة والاستدارة لرسم مربع طول ضلعه ١٠٠ خطوة.'],
+ ['triangle','مثلث بالقلم',153,'ارسم مثلثًا متساوي الأضلاع بتكرار الحركة ثم استدارة مقدارها ١٢٠ درجة.'],
+ ['circle','دائرة باستدارات صغيرة',153,'أغلق دائرة باستخدام القلم و٣٦ حركة، وبين كل حركتين استدارة ١٠ درجات. اسحب القطة إلى مكان مناسب قبل التشغيل.'],
+ ['dashed','مثلث أصفر متقطّع',155,'بدّل بين رفع القلم وإنزاله لتترك فراغات على الأضلاع الثلاثة لمثلث متساوي الأضلاع، واختر لونًا أصفر.'],
+ ['basketball','مشروع ملعب السلة',157,'اختر ملعب السلة وضع القطة في المنتصف. كرّر الحركة ٢٠ مرة بمقدار ١٠ خطوات، واترك مسارًا متقطعًا وشغّل صوت ارتداد الكرة أثناء الحركة.']
+].map(([id,title,page,instructions])=>({id,title,page,instructions}));
+export const initial=()=>({v:1,title:'مشروع جديد',x:0,y:0,scene:'plain',blocks:[]});
+const norm=t=>String(t??'').replace(/[أإآ]/g,'ا').replace(/[ً-ْـ!؟.]/g,'').trim();
+export function grade(s,id){
+ const result=run(s,'scratch'), a=result.trace;
+ if(!result.valid&&!['space','football'].includes(id))return {score:0,feedback:result.error?'تجاوز المقطع حدود التشغيل أو يحتوي لبنة غير صالحة.':'ضع لبنة العلم في بداية المقطع.'};
+ const moves=a.filter(e=>e.op==='move'),loops=a.filter(e=>e.op==='repeat'), lines=result.segments, speech=a.filter(e=>e.op==='say');
+ const move=d=>moves.find(e=>e.n===d), say=t=>speech.find(e=>norm(e.text)===norm(t)), named=t=>norm(s?.title)===norm(t);
+ const before=(x,y)=>x&&y&&a.indexOf(x)<a.indexOf(y);
+ const count=(op,n)=>a.filter(e=>e.op===op).length===n;
+ const centered=Number.isFinite(s?.x)&&Number.isFinite(s?.y)&&Math.abs(s.x)<=10&&Math.abs(s.y)<=10;
+ const sound=a.find(e=>e.op==='sound');
+ let checks=[];
+ switch(id){
+ case 'space':case 'football':{const space=id==='space';checks=[['الخلفية',s?.scene===id],['موضع القطة',space?centered:s?.x<-100],['اسم المشروع',named(space?'الفضاء':'كرة القدم')]];break;}
+ case 'speak':{const e=say('مرحبا بكم في سكراتش');checks=[['نص الترحيب',!!e],['المدة خمس ثوانٍ',e&&near(e.end-e.start,5000)]];break;}
+ case 'bird':checks=[['الحركة ٣٠ خطوة',!!move(30)],['نص الفقاعة',!!say('لنستمع لصوت العصفور')],['تشغيل صوت العصفور',a.some(e=>e.sound==='bird')]];break;
+ case 'greet':checks=[['نص التحية',!!say('السلام عليكم')],['الحركة ٣٠ خطوة',!!move(30)],['التحية قبل الحركة',before(say('السلام عليكم'),move(30))]];break;
+ case 'turn':{const turn=a.find(e=>e.op==='cw'&&e.n===40);checks=[['٤٠ درجة مع عقارب الساعة',!!turn],['نص الفقاعة',!!say('أنا أستدير')],['الكلام بعد الدوران',before(turn,say('أنا أستدير'))]];break;}
+ case 'picnic':checks=[['الدعوة للنزهة',!!say('لنقم بنزهة')],['صوت ثم حركة ٢٠٠ خطوة',before(sound,move(200))],['تسلسل القصة',before(say('لنقم بنزهة'),sound)]];break;
+ case 'loop':checks=[['تكرار عشر مرات',loops.some(e=>e.n===10)],['عشر حركات من خمس خطوات',moves.length===10&&moves.every(e=>e.n===5)]];break;
+ case 'walk':checks=[['اسم المشروع',named('قطة تمشي')],['الخلفية والموضع',s.scene==='grass'&&s.x<-100],['تكرار خمس مرات',loops.some(e=>e.n===5)],['حركة وكلام في كل دورة',alternates(a,['move','say'],5)]];break;
+ case 'turns':checks=[['اسم المشروع',named('كيفية الاستدارة')],['تكرار ست مرات',loops.some(e=>e.n===6)],['ترتيب الكلام والاستدارات',alternates(a,['say','cw','say','ccw'],6)&&speech.every((e,i)=>norm(e.text)===norm(i%2?'سأستدير إلى اليسار':'سأستدير إلى اليمين'))]];break;
+ case 'line':checks=[['رسم بالقلم',lines.length>0],['خط واحد طوله ١٥٠',lines.length===1&&near(Math.hypot(lines[0].to.x-lines[0].from.x,lines[0].to.y-lines[0].from.y),150)]];break;
+ case 'square':case 'triangle':{const n=id==='square'?4:3;checks=[['استخدام التكرار المناسب',loops.some(e=>e.n===n)],['عدد الأضلاع المرسومة',lines.length===n],['تساوي الأضلاع والزوايا وإغلاق الشكل',polygon(lines,n)],...(n===4?[['طول الضلع ١٠٠',lines.length===4&&lines.every(l=>near(Math.hypot(l.to.x-l.from.x,l.to.y-l.from.y),100))]]:[])];break;}
+ case 'circle':checks=[['٣٦ حركة متساوية',moves.length===36&&moves.every(e=>e.n>0&&e.n===moves[0].n)],['استدارات من ١٠ درجات',a.filter(e=>['cw','ccw'].includes(e.op)&&Math.abs(e.n)===10).length===36],['دائرة مغلقة',polygon(lines,36)]];break;
+ case 'dashed':{const paths=moves.map(e=>({from:{x:e.x,y:e.y},to:{x:e.toX,y:e.toY},angle:e.angle}));const sides=[];for(const p of paths){const prev=sides.at(-1);if(prev&&near(prev.angle,p.angle))prev.to=p.to;else sides.push({...p});}
+ const dotted=sides.map(p=>moves.filter(e=>near(e.angle,p.angle))).every(side=>{const ink=side.filter(e=>lines.some(l=>near(l.from.x,e.x)&&near(l.from.y,e.y)&&near(l.to.x,e.toX)&&near(l.to.y,e.toY)));return ink.length>=2&&ink.length<side.length;});checks=[['لون أصفر',lines.length&&lines.every(l=>l.color>=12&&l.color<=19)],['فراغات داخل كل ضلع',sides.length===3&&dotted],['مسار بشكل مثلث',polygon(sides,3)]];break;}
+ case 'basketball':checks=[['ملعب السلة والبدء من المنتصف',s.scene==='basketball'&&centered],['عشرون حركة من عشر خطوات',loops.length&&moves.length===20&&moves.every(e=>e.n===10)],['خط متقطع',lines.length===10&&moves.length===20&&moves.every((e,i)=>lines.some(l=>near(l.from.x,e.x)&&near(l.from.y,e.y))=== (i%2===0))],['ارتداد الكرة أثناء التسلسل',a.some(e=>e.sound==='bounce'&&moves.some(m=>m.start<=e.start)&&moves.some(m=>m.start>=e.start))]];break;
+ default:return {score:0,feedback:'نشاط غير معروف.'};
+ }
+ return assess(checks);
+}
+function alternates(trace,pattern,n){
+ const seq=trace.filter(e=>pattern.includes(e.op));
+ return seq.length===pattern.length*n&&seq.every((e,i)=>e.op===pattern[i%pattern.length]);
+}
