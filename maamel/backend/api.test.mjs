@@ -34,6 +34,8 @@ test('teacher and pupil journey, draft reopening, grading/version history, CSV a
  const {id:classId,code}=create.data;
  assert.equal((await request('classes','POST',{name:'forbidden'},pupil.session)).status,403);
  assert.equal((await request('join','POST',{code},pupil.session)).status,200);
+ assert.equal((await request('classes','GET',undefined,pupil.session)).data.classes.length,0);
+ assert.equal((await request('classes/'+classId+'/approve','POST',{students:[pupil.id]},teacher.session)).status,200);
  assert.equal((await request('classes','GET',undefined,pupil.session)).data.classes[0].code,undefined);
  assert.equal((await request('assignments','POST',{title:'بدون صلاحية',classId,lab:'files'},anotherTeacher.session)).status,404);
  assert.equal((await request('assignments','POST',{title:'مجهول',classId,lab:'x'},teacher.session)).status,400);
@@ -82,7 +84,7 @@ test('cookies, role validation, login rate, CSRF, account deletion and cascading
 test('deadline enforcement, concurrent saves, class limits and oversized state',async()=>{
  const {request,newUser,db}=fixture();
  const t=await newUser('teacher','teacher'),s=await newUser('student','student');
- const c=await request('classes','POST',{name:'ح'},t.session); await request('join','POST',{code:c.data.code},s.session);
+ const c=await request('classes','POST',{name:'ح'},t.session); await request('join','POST',{code:c.data.code},s.session); await request('classes/'+c.data.id+'/approve','POST',{students:[s.id]},t.session);
  const a=await request('assignments','POST',{classId:c.data.id,title:'واجب',lab:'files',task:'a'},t.session);
  const p='assignments/'+a.data.id,body={state:{folders:[]},version:0};
  const race=await Promise.all([request(p+'/work','PUT',body,s.session),request(p+'/work','PUT',body,s.session)]);
@@ -125,7 +127,7 @@ test('operator provisioning, school isolation, pooled limits, account suspension
  assert.equal((await op('schools/'+school.id,'DELETE',{confirmName:school.name})).status,409);
  const c=await request('classes','POST',{name:'ف'},t.session);assert.equal(c.status,201);
  assert.equal((await request('classes','POST',{name:'ف٢'},t2.session)).status,403);
- await request('join','POST',{code:c.data.code},s.session);
+ await request('join','POST',{code:c.data.code},s.session); await request('classes/'+c.data.id+'/approve','POST',{students:[s.id]},t.session);
  const a=await request('assignments','POST',{title:'عمل',classId:c.data.id,lab:'files'},t.session);
  const p='assignments/'+a.data.id;
  await request(p+'/submit','POST',{state:{folders:[]},version:0},s.session);
@@ -145,4 +147,29 @@ test('operator provisioning, school isolation, pooled limits, account suspension
  assert.equal((await op('subscriptions/'+planId,'DELETE',{confirmId:planId})).status,200);
  assert.equal((await op('schools/'+school.id,'DELETE',{confirmName:'مدرسة محدثة'})).status,200);
  assert.ok((await op('audit','GET')).data.events.find(x=>x.action==='school.delete'));
+});
+
+test('teacher edits own class and grades the last submitted attempt, retaining its automatic score',async()=>{
+ const {request,newUser}=fixture();
+ const t=await newUser('owner','teacher'),other=await newUser('other','teacher'),s=await newUser('student','student');
+ const {data:c}=await request('classes','POST',{name:'رابع'},t.session);
+ const cp='classes/'+c.id,edit={name:'رابع ب',programs:['word']};
+ assert.equal((await request(cp,'PUT',edit,other.session)).status,404);
+ assert.equal((await request(cp,'PUT',edit,t.session)).status,200);
+ assert.equal((await request(cp,'GET',undefined,t.session)).data.name,edit.name);
+ await request('join','POST',{code:c.code},s.session);
+ assert.deepEqual((await request('programs','GET',undefined,s.session)).data.programs,[]);
+ await request(cp+'/approve','POST',{students:[s.id]},t.session);
+ assert.deepEqual((await request('programs','GET',undefined,s.session)).data.programs,['word']);
+ const {data:a}=await request('assignments','POST',{classId:c.id,lab:'files',task:'ok',title:'تطبيق'},t.session);
+ const path='assignments/'+a.id;
+ const {data:attempt}=await request(path+'/submit','POST',{state:{folders:['ok']},version:0},s.session);
+ const mark={version:attempt.version,studentId:s.id,points:83};
+ assert.equal((await request(path+'/grade','PUT',mark,s.session)).status,403);
+ assert.equal((await request(path+'/grade','PUT',mark,other.session)).status,404);
+ assert.equal((await request(path+'/grade','PUT',{...mark,points:101},t.session)).status,400);
+ assert.equal((await request(path+'/grade','PUT',mark,t.session)).data.score,83);
+ const result=(await request(path+'/results','GET',undefined,t.session)).data.results[0];
+ assert.equal(result.score,83);assert.equal(result.autoScore,100);assert.equal(result.attempts,1);
+ assert.equal((await request(path,'GET',undefined,s.session)).data.work.teacherPoints,83);
 });

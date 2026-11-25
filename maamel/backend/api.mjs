@@ -77,11 +77,11 @@ function csvCell(value){
 function workView(row,defaultState){
  if(!row)return {state:defaultState,version:0,status:'draft',score:null,feedback:null};
  return {state:JSON.parse(row.state),version:row.version,status:row.status,score:row.score,
- feedback:row.feedback==null?null:JSON.parse(row.feedback),updatedAt:row.updatedAt};
+ feedback:row.feedback==null?null:(JSON.parse(row.feedback)?.automatic??JSON.parse(row.feedback)),teacherPoints:row.feedback==null?null:JSON.parse(row.feedback)?.teacherPoints??null,updatedAt:row.updatedAt};
 }
 function parseAssignment(row){
  const saved=JSON.parse(row.task);
- if(saved?.format==='course-v1')return {...row,task:saved.task,grade:saved.grade,term:saved.term};
+ if(saved?.format==='course-v1')return {...row,task:saved.task,grade:saved.grade,term:saved.term,startsAt:saved.startsAt??null,manualMax:saved.manualMax??100};
  return {...row,task:saved};
 }
 const unrecognized=()=>fail(404,'لم يُعثر على المورد المطلوب.');
@@ -150,6 +150,36 @@ export function createApi({grade,initial,validateLab,isAssigned}){
    await list('SELECT c.id,c.name,c.createdAt FROM classes c JOIN members m ON c.id=m.classId WHERE m.studentId=? ORDER BY c.createdAt DESC',user.id);
   return json({classes});
  }
+ const programIds=['windows','word','slides','sheets','scratch','robot','media','ai','web','av','python','html','video'];
+ if(method==='GET' && path==='/api/programs'){
+  if(user.role!=='student')return json({programs:programIds});
+  const rows=await list('SELECT s.programs FROM members m LEFT JOIN class_settings s ON s.classId=m.classId WHERE m.studentId=?',user.id);
+  return json({programs:[...new Set(rows.flatMap(row=>row.programs===null?programIds:JSON.parse(row.programs)))]});
+ }
+ const classRoute=path.match(/^\/api\/classes\/([a-f0-9-]{36})(?:\/(approve))?$/);
+ if(classRoute){
+  role(user,'teacher');
+  const classId=classRoute[1],c=await one('SELECT id,name,code FROM classes WHERE id=? AND teacherId=?',classId,user.id);
+  if(!c)return unrecognized();
+  if(method==='GET'&&!classRoute[2]){
+   const settings=await one('SELECT programs FROM class_settings WHERE classId=?',classId);
+   const pending=await list('SELECT u.id,u.name,u.username FROM users u JOIN join_requests j ON j.studentId=u.id WHERE j.classId=? ORDER BY u.name',classId);
+   return json({...c,programs:JSON.parse(settings?.programs??'null'),pending});
+  }
+  if(method==='POST'&&classRoute[2]==='approve'){
+   const {students}=await input();
+   if(!Array.isArray(students)||!students.length||students.length>500||students.some(id=>typeof id!=='string'))fail(400,'اختر الطلاب المراد اعتمادهم.');
+   const selection=JSON.stringify(students);
+   await db.batch([query('INSERT OR IGNORE INTO members SELECT classId,studentId FROM join_requests WHERE classId=? AND studentId IN (SELECT value FROM json_each(?))',classId,selection),query('DELETE FROM join_requests WHERE classId=? AND studentId IN (SELECT value FROM json_each(?))',classId,selection),audit(user.id,'class.approve',classId)]);
+   return json({ok:true});
+  }
+  if(method==='PUT'&&!classRoute[2]){
+   const b=await input(),name=field(b.name,1,100,'أدخل اسم الفصل.');
+   if(b.programs!==null&&(!Array.isArray(b.programs)||b.programs.some(id=>!programIds.includes(id))))fail(400,'اختيار البرامج غير صالح.');
+   await db.batch([query('UPDATE classes SET name=? WHERE id=? AND teacherId=?',name,classId,user.id),query('INSERT INTO class_settings VALUES(?,?) ON CONFLICT(classId) DO UPDATE SET programs=excluded.programs',classId,b.programs===null?null:JSON.stringify([...new Set(b.programs)])),audit(user.id,'class.edit',classId)]);
+   return json({ok:true});
+  }
+ }
  if(method==='POST' && path==='/api/classes'){
   role(user,'teacher');
   const body=await input(),name=field(body.name,1,100,'أدخل اسم الفصل.'),classId=id(),code=randomHex(5).toUpperCase();
@@ -175,7 +205,7 @@ export function createApi({grade,initial,validateLab,isAssigned}){
   const code=field(body.code,1,64,'أدخل رمز الفصل.').toUpperCase();
   const found=await one('SELECT id,name FROM classes WHERE code=?',code);
   if(!found)fail(404,'تعذر العثور على الفصل.');
-  await db.batch([query('INSERT OR IGNORE INTO members VALUES(?,?)',found.id,user.id),audit(user.id,'class.join',found.id)]);
+  await db.batch([query('INSERT OR IGNORE INTO join_requests SELECT ?,? WHERE NOT EXISTS(SELECT 1 FROM members WHERE classId=? AND studentId=?)',found.id,user.id,found.id,user.id),audit(user.id,'class.join',found.id)]);
   return json(found);
  }
  const teacher=user.role==='teacher';
@@ -183,7 +213,7 @@ export function createApi({grade,initial,validateLab,isAssigned}){
  const select=`SELECT a.*,c.name AS className FROM assignments a JOIN classes c ON c.id=a.classId WHERE ${scope}`;
  if(method==='GET' && path==='/api/assignments'){
   const rows=teacher?await list(select+' ORDER BY a.createdAt DESC',user.id):
-   await list(`SELECT a.*,c.name AS className,w.score,coalesce(w.status,'draft') AS status FROM assignments a JOIN classes c ON c.id=a.classId LEFT JOIN work w ON w.assignmentId=a.id AND w.studentId=? WHERE ${scope} ORDER BY a.createdAt DESC`,user.id,user.id);
+   await list(`SELECT a.*,c.name AS className,w.score,json_extract(w.feedback,'$.teacherPoints') AS teacherPoints,coalesce(w.status,'draft') AS status FROM assignments a JOIN classes c ON c.id=a.classId LEFT JOIN work w ON w.assignmentId=a.id AND w.studentId=? WHERE ${scope} ORDER BY a.createdAt DESC`,user.id,user.id);
   return json({assignments:rows.map(parseAssignment)});
  }
  if(method==='POST' && path==='/api/assignments'){
@@ -197,17 +227,21 @@ export function createApi({grade,initial,validateLab,isAssigned}){
   try{if((validateLab && !validateLab(lab,task)) || !initial(lab,task))throw Error();}catch{fail(400,'المختبر أو النشاط غير متاح.');}
   const scoped=b.grade!==undefined||b.term!==undefined;
   if(scoped&&!isAssigned?.(lab,task,b.grade,b.term))fail(400,'التدريب غير موجود في الصف والفصل المختارين.');
-  const persisted=scoped?{format:'course-v1',task,grade:b.grade,term:b.term}:task;
+  const startsAt=iso(b.startsAt),due=iso(b.dueAt),manualMax=b.manualMax??100;
+  if(startsAt&&(!due||startsAt>=due))fail(400,'يجب أن تكون النهاية بعد البداية.');
+  if(!Number.isInteger(manualMax)||manualMax<0||manualMax>100)fail(400,'حصة المعلم من الدرجة غير صالحة.');
+  const persisted=scoped?{format:'course-v1',task,grade:b.grade,term:b.term,startsAt,manualMax}:task;
   const assignment={id:id(),title,classId:c.id,lab,task,...(scoped?{grade:b.grade,term:b.term}:{}),dueAt:iso(b.dueAt),createdAt:today()};
-  await db.batch([query('INSERT INTO assignments VALUES(?,?,?,?,?,?,?)',assignment.id,c.id,title,lab,JSON.stringify(persisted),assignment.dueAt,assignment.createdAt),audit(user.id,'assignment.create',assignment.id)]);
+  await db.batch([query('INSERT INTO assignments VALUES(?,?,?,?,?,?,?)',assignment.id,c.id,title,lab,JSON.stringify(persisted),assignment.dueAt,assignment.createdAt),query("UPDATE class_settings SET programs=json_insert(programs,'$[#]',?) WHERE classId=? AND programs IS NOT NULL AND NOT EXISTS(SELECT 1 FROM json_each(programs) WHERE value=?)",lab,c.id,lab),audit(user.id,'assignment.create',assignment.id)]);
   return json({assignment,id:assignment.id},201);
  }
- const match=path.match(/^\/api\/assignments\/([\da-f-]{36})(?:\/(work|submit|results|export|reopen|attempts))?$/);
+ const match=path.match(/^\/api\/assignments\/([\da-f-]{36})(?:\/(work|submit|results|export|reopen|attempts|grade))?$/);
  if(match){
   const [,assignmentId,action]=match;
   const record=await one(select+' AND a.id=?',user.id,assignmentId);
   if(!record)return unrecognized();
   const assignment=parseAssignment(record);
+  if(!teacher && assignment.startsAt>today())fail(403,'لم يبدأ وقت الواجب.');
   if(!action && method==='GET'){
    const row=teacher?null:await one('SELECT * FROM work WHERE assignmentId=? AND studentId=?',assignmentId,user.id);
    const attempts=teacher?[]:await list('SELECT score,version,submittedAt,feedback FROM attempts WHERE assignmentId=? AND studentId=? ORDER BY version DESC',assignmentId,user.id);
@@ -219,8 +253,9 @@ export function createApi({grade,initial,validateLab,isAssigned}){
    if(!Number.isSafeInteger(b.version)||b.version<0 || !b.state || typeof b.state!=='object'||Array.isArray(b.state))fail(400,'نسخة العمل غير صالحة.');
    const current=await one('SELECT version,status,reopened FROM work WHERE assignmentId=? AND studentId=?',assignmentId,user.id);
    if((current?.version||0)!==b.version)fail(409,'تغيرت النسخة المحفوظة. أعد فتح العمل قبل الحفظ.');
-   if(current?.status==='submitted')fail(409,'سُلّم الواجب. يمكن للمعلم إعادة فتحه.');
-   if(assignment.dueAt && assignment.dueAt<today() && !current?.reopened)fail(403,'انتهى وقت التسليم.');
+   if(assignment.dueAt && assignment.dueAt<today() && (assignment.startsAt||!current?.reopened))fail(403,'انتهى وقت التسليم.');
+   const resubmitting=action==='submit' && assignment.startsAt && assignment.dueAt>=today();
+   if(current?.status==='submitted'&&!resubmitting)fail(409,'سُلّم الواجب. يمكن للمعلم إعادة فتحه.');
    const submitting=action==='submit';
    let assessment;
    if(submitting){
@@ -233,7 +268,7 @@ export function createApi({grade,initial,validateLab,isAssigned}){
    const timestamp=today(),state=JSON.stringify(b.state);
    const replacement=b.version===0?
     query('INSERT INTO work(assignmentId,studentId,state,version,status,score,feedback,updatedAt) VALUES(?,?,?,1,?,?,?,?) ON CONFLICT DO NOTHING',assignmentId,user.id,state,status,score,feedback,timestamp):
-    query("UPDATE work SET state=?,version=version+1,status=?,score=?,feedback=?,updatedAt=? WHERE assignmentId=? AND studentId=? AND version=? AND status!='submitted'",state,status,score,feedback,timestamp,assignmentId,user.id,b.version);
+    query("UPDATE work SET state=?,version=version+1,status=?,score=?,feedback=?,updatedAt=? WHERE assignmentId=? AND studentId=? AND version=? AND (status!='submitted' OR ?)",state,status,score,feedback,timestamp,assignmentId,user.id,b.version,resubmitting?1:0);
    const result=await replacement.run();
    if(!result.meta.changes)fail(409,'سبق تعديل النسخة. أعد فتح العمل.');
    return json({version:b.version+1,status,score,feedback:assessment?.feedback??null,updatedAt:timestamp});
@@ -245,13 +280,25 @@ export function createApi({grade,initial,validateLab,isAssigned}){
     const records=await list('SELECT version,score,submittedAt,feedback,state FROM attempts WHERE assignmentId=? AND studentId=? ORDER BY version DESC LIMIT 20',assignmentId,studentId);
     return json({attempts:records.map(r=>({...r,state:JSON.parse(r.state),feedback:JSON.parse(r.feedback)}))});
    }
-   const results=await list(`SELECT u.id AS studentId,u.name,COALESCE(w.status,'pending') AS status,w.score,w.updatedAt,
+   const results=await list(`SELECT u.id AS studentId,u.name,COALESCE(w.status,'pending') AS status,w.score,json_extract(w.feedback,'$.teacherPoints') AS teacherPoints,w.version,w.updatedAt,(SELECT h.score FROM attempts h WHERE h.assignmentId=w.assignmentId AND h.studentId=u.id ORDER BY version DESC LIMIT 1) AS autoScore,
     (SELECT count(*) FROM attempts h WHERE h.studentId=u.id AND h.assignmentId=?) AS attempts
     FROM members m JOIN users u ON u.id=m.studentId LEFT JOIN work w ON w.studentId=u.id AND w.assignmentId=?
     WHERE m.classId=? ORDER BY u.name,u.id`,assignmentId,assignmentId,assignment.classId);
    if(action==='results')return json({results});
    const lines=[['الطالب','الحالة','الدرجة','عدد المحاولات'],...results.map(r=>[r.name,r.status,r.score,r.attempts])];
    return new Response('\uFEFF'+lines.map(row=>row.map(csvCell).join(',')).join('\r\n'),{headers:{...safeHeaders,'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="maamel-results.csv"'}});
+  }
+  if(action==='grade'&&method==='PUT'){
+   role(user,'teacher');const {studentId,points,version}=await input();
+   const max=assignment.manualMax??100;
+   if(typeof studentId!=='string'||!Number.isFinite(points)||points<0||points>max||!Number.isInteger(version))fail(400,'الدرجة أو نسخة التسليم غير صالحة.');
+   const attempt=await one('SELECT score,feedback FROM attempts WHERE assignmentId=? AND studentId=? AND version=?',assignmentId,studentId,version);
+   if(!attempt)fail(409,'أعد فتح نتائج آخر تسليم.');
+   const score=Math.round((attempt.score*(100-max)/100+points)*100)/100;
+   const result=await db.batch([query("UPDATE work SET score=?,feedback=? WHERE assignmentId=? AND studentId=? AND version=? AND status='submitted'",score,JSON.stringify({teacherPoints:points,automatic:JSON.parse(attempt.feedback)}),assignmentId,studentId,version),
+    query("INSERT INTO audit(actor,action,target,createdAt) SELECT ?,'assignment.grade',?,? WHERE changes()>0",user.id,assignmentId+':'+studentId+':'+score,today())]);
+   if(!result[0].meta.changes)fail(409,'تغيّر التسليم. حدّث النتائج.');
+   return json({score});
   }
   if(action==='reopen' && method==='POST'){
    role(user,'teacher'); const {studentId}=await input();

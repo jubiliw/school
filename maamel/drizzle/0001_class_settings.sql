@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS class_settings(classId TEXT PRIMARY KEY REFERENCES classes ON DELETE CASCADE, programs TEXT);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS join_requests(classId TEXT NOT NULL REFERENCES classes ON DELETE CASCADE,studentId TEXT NOT NULL REFERENCES users ON DELETE CASCADE,PRIMARY KEY(classId,studentId));

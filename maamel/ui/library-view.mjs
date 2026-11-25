@@ -8,8 +8,8 @@ function esc(v){const n=document.createElement('span');n.textContent=String(v??'
 export function desktopPrograms(catalog){
  return [...new Set([...catalog.map(lab=>lab.id),'python','html','video'])].filter(id=>id!=='review' && Object.hasOwn(names,id));
 }
-export function showLibrary(main,catalog){
- const cards=desktopPrograms(catalog).map(id=>`<a class="app-tile" style="--tone:${color[id]}" href="#lab/${id}"><span class="app-icon" aria-hidden="true">${glyph[id]}</span><h3>${names[id]}</h3><p>${desc[id]}</p></a>`).join('');
+export function showLibrary(main,catalog,allowed=desktopPrograms(catalog)){
+ const cards=allowed.map(id=>`<a class="app-tile" style="--tone:${color[id]}" href="#lab/${id}"><span class="app-icon" aria-hidden="true">${glyph[id]}</span><h3>${names[id]}</h3><p>${desc[id]}</p></a>`).join('');
  main.innerHTML=`<section class="studio desktop-banner"><div class="studio-copy"><h1>معامل الحاسب</h1><p>افتح برنامجك وابدأ العمل.</p></div><div class="studio-art" aria-hidden="true"><div class="circuit"></div><div class="terminal"><i></i><i></i><i></i><div><b>❯</b><em></em></div><div><em></em></div><div><b>❯</b><strong>_</strong></div></div></div></section><section aria-label="البرامج"><div class="program-grid">${cards}</div></section>`;
 }
 export function showProgram(main,catalog,id,grade,term){
