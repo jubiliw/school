@@ -10,7 +10,7 @@ export default {
   const type=route.endsWith('.mjs')?'application/javascript':route.endsWith('.css')?'text/css':route.endsWith('.json')?'application/json':route.endsWith('.svg')?'image/svg+xml':'text/html';
   return new Response(request.method==='HEAD'?null:assets[route],{headers:{
    'Content-Type':type+'; charset=utf-8','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin',
-   'Cache-Control':'no-cache','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; connect-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'none'; form-action 'self'"
+   'Cache-Control':'no-cache','Content-Security-Policy':route==='/studio/python-frame.html'?"default-src 'none'; sandbox allow-scripts; script-src 'sha256-xWe7WRsY8+3Gzkf1Rl3EJRScbCdVp8EA3hbGd1OXl4U=' 'unsafe-eval'; worker-src blob:; connect-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'":"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; connect-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'none'; form-action 'self'"
   }});
  },
  async scheduled(event,env,ctx){if(api.scheduled)await api.scheduled(event,env,ctx)}

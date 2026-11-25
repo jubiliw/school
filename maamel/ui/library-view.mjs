@@ -1,20 +1,16 @@
 import {placements,programsFor,gradeNames,termNames} from './course-catalog.mjs';
 export const names={windows:'سطح المكتب · Windows',word:'معالجة النصوص · Word',sheets:'الجداول الإلكترونية · Excel',slides:'العروض التقديمية · PowerPoint',scratch:'البرمجة المرئية · Scratch',robot:'مختبر الروبوت · Open Roberta',web:'متصفح الويب',av:'مسجل الصوت ومشغل الفيديو',media:'محرر الصور',ai:'أداة القصاصة',review:'تقويم الوحدة'};
-const glyph={windows:'▤',word:'Aa',sheets:'ƒx',slides:'▧',scratch:'{ }',robot:'⌁',web:'◎',av:'◖))',media:'◩',ai:'⌗',review:'✓'};
-const desc={windows:'الملفات والمجلدات وإعدادات الجهاز',word:'تحرير المستند وتنسيق النص والفقرات',sheets:'الخلايا والصيغ والعمليات الحسابية',slides:'تصميم الشرائح وتشغيل العرض',scratch:'اللبنات والأحداث والرسم بالقلم',robot:'برمجة المحركات واختبار المسار',web:'التصفح والبحث عن المعلومات',av:'تسجيل المقاطع وتشغيل الوسائط',media:'تحسين الصور واقتصاصها وحفظها',ai:'تحديد منطقة واستخراج نصها',review:'أسئلة الوحدات والتصحيح الفوري'};
-const color={windows:'#097e77',word:'#295ab2',sheets:'#23835a',slides:'#ba512e',scratch:'#8a5aaa',robot:'#336888',web:'#1379a3',av:'#925590',media:'#137c7b',ai:'#6b688d',review:'#667250'};
+Object.assign(names,{python:'محرر Python',html:'محرر HTML',video:'مونتاج الفيديو · Shotcut',av:'مسجل الصوت'});
+const glyph={python:'Py',html:'</>',video:'▷',windows:'▤',word:'Aa',sheets:'ƒx',slides:'▧',scratch:'{ }',robot:'⌁',web:'◎',av:'◖))',media:'◩',ai:'⌗',review:'✓'};
+const desc={python:'كتابة البرامج وتشغيلها في نافذة المخرجات',html:'تحرير صفحات الويب ومعاينتها',video:'ترتيب المقاطع وقصها وتصدير الفيلم',windows:'الملفات والمجلدات وإعدادات الجهاز',word:'تحرير المستند وتنسيق النص والفقرات',sheets:'الخلايا والصيغ والعمليات الحسابية',slides:'تصميم الشرائح وتشغيل العرض',scratch:'اللبنات والأحداث والرسم بالقلم',robot:'برمجة المحركات واختبار المسار',web:'التصفح والبحث عن المعلومات',av:'تسجيل المقاطع وتشغيل الوسائط',media:'تحسين الصور واقتصاصها وحفظها',ai:'تحديد منطقة واستخراج نصها',review:'أسئلة الوحدات والتصحيح الفوري'};
+const color={python:'#34638d',html:'#a74439',video:'#385a7b',windows:'#097e77',word:'#295ab2',sheets:'#23835a',slides:'#ba512e',scratch:'#8a5aaa',robot:'#336888',web:'#1379a3',av:'#925590',media:'#137c7b',ai:'#6b688d',review:'#667250'};
 function esc(v){const n=document.createElement('span');n.textContent=String(v??'');return n.innerHTML}
-function tile(lab,grade,term){return '<a class="app-tile" style="--tone:'+color[lab.id]+'" href="#program/'+grade+'/'+term+'/'+lab.id+'"><span class="app-icon" aria-hidden="true">'+glyph[lab.id]+'</span><h3>'+names[lab.id]+'</h3><p>'+desc[lab.id]+'</p><small>'+lab.tasks.length.toLocaleString('ar-SA')+' تدريبات</small></a>'}
-export function showLibrary(main,catalog,g,t){
- const available=placements(catalog),grades=[...new Set(available.map(p=>p.grade))];
- const grade=grades.includes(+g)?+g:grades[0],terms=available.filter(p=>p.grade===grade);
- const term=terms.find(p=>p.term===+t)?.term??terms[0].term;
- const programs=programsFor(catalog,grade,term);
- main.innerHTML='<section class="studio"><div class="studio-copy"><span>معامل الحاسب</span><h1>مساحة البرامج</h1><p>اختر صفّك وفصلك الدراسي لفتح البرامج العملية في كتابك.</p></div><div class="studio-art" aria-hidden="true"><div class="circuit"></div><div class="terminal"><i></i><i></i><i></i><div><b>❯</b> <em></em></div><div><em></em></div><div><b>❯</b> <strong>_</strong></div></div><div class="glass-key key-a">{ }</div><div class="glass-key key-b">ƒx</div></div></section>'+
- '<section class="course-pick" aria-label="اختيار المنهج"><label>الصف الدراسي<select id="pickgrade">'+grades.map(n=>'<option value="'+n+'" '+(n===grade?'selected':'')+'>'+gradeNames[n]+'</option>').join('')+'</select></label><div><b>الفصل الدراسي</b><div class="term-pills">'+terms.map(p=>'<a href="#course/'+grade+'/'+p.term+'" '+(p.term===term?'aria-current="page"':'')+'>'+termNames[p.term]+'</a>').join('')+'</div></div></section>'+
- '<div class="heading"><h2>البرامج العملية</h2><span class="meta">'+gradeNames[grade]+' · '+termNames[term]+'</span></div><div class="program-grid">'+programs.filter(l=>l.id!=='review').map(l=>tile(l,grade,term)).join('')+'</div>'+
- (programs.some(l=>l.id==='review')?'<a class="review-link" href="#program/'+grade+'/'+term+'/review">فتح تقويمات هذا الفصل</a>':'');
- main.querySelector('#pickgrade').onchange=e=>{const n=+e.target.value;location.hash='course/'+n+'/'+available.find(p=>p.grade===n).term};
+export function desktopPrograms(catalog){
+ return [...new Set([...catalog.map(lab=>lab.id),'python','html','video'])].filter(id=>id!=='review' && Object.hasOwn(names,id));
+}
+export function showLibrary(main,catalog){
+ const cards=desktopPrograms(catalog).map(id=>`<a class="app-tile" style="--tone:${color[id]}" href="#lab/${id}"><span class="app-icon" aria-hidden="true">${glyph[id]}</span><h3>${names[id]}</h3><p>${desc[id]}</p></a>`).join('');
+ main.innerHTML=`<section class="studio desktop-banner"><div class="studio-copy"><h1>معامل الحاسب</h1><p>افتح برنامجك وابدأ العمل.</p></div><div class="studio-art" aria-hidden="true"><div class="circuit"></div><div class="terminal"><i></i><i></i><i></i><div><b>❯</b><em></em></div><div><em></em></div><div><b>❯</b><strong>_</strong></div></div></div></section><section aria-label="البرامج"><div class="program-grid">${cards}</div></section>`;
 }
 export function showProgram(main,catalog,id,grade,term){
  const scoped=grade&&term,lab=(scoped?programsFor(catalog,grade,term):catalog).find(l=>l.id===id);

@@ -24,8 +24,8 @@ const folder=(id,parent,name)=>({id,parent,name,kind:'folder'})
 export function initial(task='animals'){
   return {version:1,task:tasks.some(t=>t.id===task)?task:'animals',answers:{},nodes:[
     folder('desktop',null,'سطح المكتب'),folder('docs',null,'المستندات'),folder('bin',null,'سلة المحذوفات'),
-    folder('samples','docs',animalFolder),
-    ...animals.map((a,i)=>({id:a.id,parent:'samples',kind:'image',name:'صورة '+(i+1)+'.png',asset:a.id}))
+    ...(task==='free'?[]:[folder('samples','docs',animalFolder),
+    ...animals.map((a,i)=>({id:a.id,parent:'samples',kind:'image',name:'صورة '+(i+1)+'.png',asset:a.id}))])
   ],settings:{background:'jade',resolution:'1280×800',volume:60,clockOffset:0}}
 }
 const key=s=>s.normalize('NFC').trim().toLocaleLowerCase()

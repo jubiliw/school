@@ -8,7 +8,7 @@ export const tasks=[
 export const trip=[['الوجهة','الفصل أ','الفصل ب','إجمالي عدد الطلبة'],['الحِجر',1,3],['قلعة مارد',9,3],['قصر المصمك',3,7],['الدرعية التاريخية',7,7],['حصن نجران',2,6],['المجموع'],['التكلفة الإجمالية']];
 export function initial(task){
  const id=taskId(task)||'secret', cells={};
- if(id!=='secret'){trip.forEach((row,i)=>row.forEach((v,j)=>cells['ABCD'[j]+(i+1)]={raw:String(v)}));}
+ if(id!=='secret'&&id!=='free'){trip.forEach((row,i)=>row.forEach((v,j)=>cells['ABCD'[j]+(i+1)]={raw:String(v)}));}
  if(id==='cost'){for(const col of ['B','C'])cells[col+'7']={raw:'='+[2,3,4,5,6].map(n=>col+n).join('+')};}
  return {version:1,name:'',files:[],body:{sheetName:'ورقة 1',dir:'rtl',cells,widths:{A:146},heights:{}}};
 }
