@@ -10,6 +10,7 @@ const examples={
  walk:{title:'قطة تمشي',scene:'grass',x:-150,blocks:[flag,repeat(5,move(10),say('مرحبًا'))]},turns:{title:'كيفية الاستدارة',blocks:[flag,repeat(6,say('سأستدير إلى اليمين'),turn(15),say('سأستدير إلى اليسار'),turn(15,'ccw'))]},
  line:[down,move(150)],square:[down,repeat(4,move(100),turn(90))],triangle:[down,repeat(3,move(100),turn(120))],
  circle:[down,repeat(36,move(10),turn(10))],dashed:[{op:'color',n:16},repeat(3,repeat(4,down,move(10),up,move(10)),turn(120))],
+ 'review-dashes':{x:-170,blocks:[flag,{op:'erase'},{op:'size',n:2},{op:'color',n:77},repeat(5,down,move(30),up,move(30))]},
  basketball:{scene:'basketball',blocks:[flag,repeat(10,down,move(10),sound('bounce'),up,move(10))]}
 };
 for(const task of tasks)test('Scratch textbook p'+task.page+' '+task.id,()=>{const model=examples[task.id];const s={...initial(),...(Array.isArray(model)?{blocks:[flag,...model]}:model)};assert.equal(grade(JSON.parse(JSON.stringify(s)),task.id).score,100);assert.ok(grade(initial(),task.id).score<100);});

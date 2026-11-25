@@ -15,6 +15,7 @@ export const tasks=[
  ['triangle','مثلث بالقلم',153,'ارسم مثلثًا متساوي الأضلاع بتكرار الحركة ثم استدارة مقدارها ١٢٠ درجة.'],
  ['circle','دائرة باستدارات صغيرة',153,'أغلق دائرة باستخدام القلم و٣٦ حركة، وبين كل حركتين استدارة ١٠ درجات. اسحب القطة إلى مكان مناسب قبل التشغيل.'],
  ['dashed','مثلث أصفر متقطّع',155,'بدّل بين رفع القلم وإنزاله لتترك فراغات على الأضلاع الثلاثة لمثلث متساوي الأضلاع، واختر لونًا أصفر.'],
+ ['review-dashes','أكمل رسم الشرطات البنفسجية',169,'ضع القطة قرب اليسار. استخدم العلم وامسح الرسم السابق، ثم اختر قلمًا بنفسجيًا بحجم ٢. كرّر خمس مرات: أنزل القلم، تحرك ٣٠ خطوة، ارفع القلم، وتحرك ٣٠ خطوة.'],
  ['basketball','مشروع ملعب السلة',157,'اختر ملعب السلة وضع القطة في المنتصف. كرّر الحركة ٢٠ مرة بمقدار ١٠ خطوات، واترك مسارًا متقطعًا وشغّل صوت ارتداد الكرة أثناء الحركة.']
 ].map(([id,title,page,instructions])=>({id,title,page,instructions}));
 export const initial=()=>({v:1,title:'مشروع جديد',x:0,y:0,scene:'plain',blocks:[]});
@@ -44,6 +45,12 @@ export function grade(s,id){
  case 'circle':checks=[['٣٦ حركة متساوية',moves.length===36&&moves.every(e=>e.n>0&&e.n===moves[0].n)],['استدارات من ١٠ درجات',a.filter(e=>['cw','ccw'].includes(e.op)&&Math.abs(e.n)===10).length===36],['دائرة مغلقة',polygon(lines,36)]];break;
  case 'dashed':{const paths=moves.map(e=>({from:{x:e.x,y:e.y},to:{x:e.toX,y:e.toY},angle:e.angle}));const sides=[];for(const p of paths){const prev=sides.at(-1);if(prev&&near(prev.angle,p.angle))prev.to=p.to;else sides.push({...p});}
  const dotted=sides.map(p=>moves.filter(e=>near(e.angle,p.angle))).every(side=>{const ink=side.filter(e=>lines.some(l=>near(l.from.x,e.x)&&near(l.from.y,e.y)&&near(l.to.x,e.toX)&&near(l.to.y,e.toY)));return ink.length>=2&&ink.length<side.length;});checks=[['لون أصفر',lines.length&&lines.every(l=>l.color>=12&&l.color<=19)],['فراغات داخل كل ضلع',sides.length===3&&dotted],['مسار بشكل مثلث',polygon(sides,3)]];break;}
+ case 'review-dashes':{
+  const lengths=lines.map(l=>Math.hypot(l.to.x-l.from.x,l.to.y-l.from.y));
+  const spaced=lines.slice(1).every((l,i)=>near(l.from.x-lines[i].to.x,30)&&near(l.from.y,lines[i].to.y));
+  checks=[['مسح المنصة قبل الرسم',a.some(e=>e.op==='erase'&&e.start<=(lines[0]?.start??-1))],['قلم بنفسجي بحجم ٢',lines.length>0&&lines.every(l=>l.color>=70&&l.color<=85&&l.width===2)],['خمس شرطات أفقية طول كل منها ٣٠',lines.length===5&&lengths.every(n=>near(n,30))&&lines.every(l=>near(l.to.x-l.from.x,30)&&near(l.to.y,l.from.y))],['فراغات متساوية من ٣٠ خطوة',lines.length===5&&spaced],['تكرار خمس دورات كاملة',loops.some(e=>e.n===5)&&moves.length===10&&moves.every(e=>e.n===30)]];
+  break;
+ }
  case 'basketball':checks=[['ملعب السلة والبدء من المنتصف',s.scene==='basketball'&&centered],['عشرون حركة من عشر خطوات',loops.length&&moves.length===20&&moves.every(e=>e.n===10)],['خط متقطع',lines.length===10&&moves.length===20&&moves.every((e,i)=>lines.some(l=>near(l.from.x,e.x)&&near(l.from.y,e.y))=== (i%2===0))],['ارتداد الكرة أثناء التسلسل',a.some(e=>e.sound==='bounce'&&moves.some(m=>m.start<=e.start)&&moves.some(m=>m.start>=e.start))]];break;
  default:return {score:0,feedback:'نشاط غير معروف.'};
  }

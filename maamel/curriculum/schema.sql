@@ -51,3 +51,10 @@ WHEN NEW.status='اجتاز الاختبار' AND NOT EXISTS (
  SELECT 1 FROM ma_activity a JOIN ma_acceptance t ON t.activity_id=a.id WHERE a.requirement_id=NEW.id
 )
 BEGIN SELECT RAISE(ABORT,'No acceptance criterion'); END;
+CREATE TABLE IF NOT EXISTS ma_task_evidence (
+ run_id INTEGER PRIMARY KEY REFERENCES ma_run(id),
+ lab TEXT NOT NULL, task TEXT NOT NULL, code_sha256 TEXT NOT NULL CHECK(length(code_sha256)=64),
+ incorrect_score INTEGER NOT NULL CHECK(incorrect_score BETWEEN 0 AND 99),
+ correct_score INTEGER NOT NULL CHECK(correct_score=100), teacher_score INTEGER NOT NULL CHECK(teacher_score=100),
+ attempts INTEGER NOT NULL CHECK(attempts=2)
+);
