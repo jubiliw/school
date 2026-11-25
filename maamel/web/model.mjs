@@ -34,3 +34,22 @@ export function grade(s,id){if(id==='safety'){const count=safety.filter((q,i)=>s
  const src=doc?.source?.trim()===p.url; const correctNote=typeof doc?.note==='string'&&doc.note.trim().length>=10&&norm(p.text+' '+p.title).includes(norm(doc.note).replace(/[.،]+$/,''));
  const checks=t.id==='robot'?[src]:[src,correctNote,Boolean(doc?.filename?.trim())];
  return {score:Math.round(100*checks.filter(Boolean).length/checks.length),feedback:checks.every(Boolean)?'استوفيت معايير النشاط.':!src?'راجع عنوان المصدر المحدد في النشاط.':!correctNote?'انقل عبارة ذات معنى من البطاقة التعليمية.':'اختر اسمًا للمستند ثم احفظه.'};}
+
+// Existing saved drafts store the active tab's history directly on the root.
+export function tabAction(state, action, target) {
+ const tabs = [...(state.tabs ?? [null])];
+ let selected = state.tabIndex ?? 0;
+ tabs[selected] = { history:[...state.history], cursor:state.cursor };
+ if(action==='add'){
+   if(tabs.length>=8)return state;
+   tabs.push({history:[HOME],cursor:0});
+   selected=tabs.length-1;
+ } else if(action==='close'){
+   if(tabs.length===1)return state;
+   tabs.splice(selected,1);
+   selected=Math.min(selected,tabs.length-1);
+ } else if(action==='select' && Number.isInteger(target) && target>=0 && target<tabs.length){
+   selected=target;
+ } else return state;
+ return {...state,tabs,tabIndex:selected,...tabs[selected]};
+}

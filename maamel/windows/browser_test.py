@@ -27,7 +27,15 @@ def run(page, viewport):
     def button(label):return page.get_by_role("button",name=label,exact=True)
     def submit_name(label, name):
         button(label).click(); page.get_by_role("dialog").get_by_role("textbox").fill(name);button("تأكيد").click()
-    submit_name("مجلد جديد","الحيوانات")
+    button("عرض").click()
+    button("قائمة").click()
+    assert page.locator(".wm-files.wm-rows").count()==1
+    button("أيقونات").click()
+    button("الشريط الرئيسي").click()
+    page.locator(".wm-files").click(button="right",position={"x":2,"y":2})
+    page.get_by_role("menu").get_by_role("button",name="جديد").click()
+    page.get_by_role("menu").get_by_role("button",name="مجلد",exact=True).click()
+    page.get_by_role("dialog").get_by_role("textbox").fill("الحيوانات");button("تأكيد").click()
     folder = page.locator(".wm-tile",has_text="الحيوانات")
     folder.dblclick()
     submit_name("مجلد جديد","الطيور")
@@ -49,9 +57,14 @@ def run(page, viewport):
     page.locator(".wm-split nav").get_by_role("button",name="سلة المحذوفات").click()
     page.locator(".wm-tile",has_text="نورس.png").click();button("استعادة").click()
     assert page.evaluate("points()")==40
-    submit=button("⊞ بدء");submit.click();button("الرسام").click()
+    submit=button("⊞ بدء");submit.click()
+    search=page.get_by_role("searchbox",name="البحث في التطبيقات")
+    search.fill("الرسام")
+    assert page.get_by_role("navigation",name="قائمة بدء").get_by_role("button",name="الرسام",exact=True).count()==1
+    search.fill("");page.get_by_text("البرامج الملحقة",exact=True).click()
+    button("فتح الرسام").click()
     canvas=page.locator("canvas");box=canvas.bounding_box();x,y=box['x']+5,box['y']+5
-    page.mouse.move(x,y);page.mouse.down();page.mouse.move(x+40,y+30);page.mouse.up();button("حفظ").click()
+    page.mouse.move(x,y);page.mouse.down();page.mouse.move(x+40,y+30);page.mouse.up();button("ملف").click();button("حفظ").click()
     page.get_by_role("dialog").get_by_role("button",name="حفظ").click()
     assert page.evaluate("state.nodes.some(n=>n.kind==='drawing' && n.strokes[0].points.length>1)")
     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
@@ -61,6 +74,9 @@ def run(page, viewport):
     page.goto(base+"harness#display");page.reload()
     page.get_by_label("دقة الشاشة",exact=True).select_option("1920×1200");button("الاحتفاظ بالتغييرات").click()
     assert page.evaluate("points()")==33
+    button("الخلفية").click();page.get_by_label("خلفية سطح المكتب").select_option("blue")
+    page.get_by_role("navigation",name="أقسام الإعدادات").get_by_role("button",name="الصوت").click();page.get_by_label("مستوى الصوت").press("Home");page.get_by_label("مستوى الصوت").press("ArrowRight")
+    assert page.evaluate("points()")==100
     page.goto(base+"harness#alarm");page.reload()
     page.get_by_label("وقت المنبه").fill("11:59");button("ضبط المنبه").click()
     assert page.evaluate("points()")==67

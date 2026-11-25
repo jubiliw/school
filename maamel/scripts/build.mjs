@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {createCatalog} from './course-index.mjs';
 import {labs} from '../registry.mjs';
 const read=p=>fs.readFileSync(p,'utf8');
 const assets={};
@@ -9,13 +10,8 @@ add('index.html','/');add('backend/admin-ui.mjs','/admin-ui.mjs');
 for(const dir of ['ui','office-common',...Object.keys(labs)])for(const file of fs.readdirSync(dir)){
  if(/\.(mjs|css|svg)$/.test(file)&&!file.includes('.test.'))add(dir+'/'+file)
 }
-const lessons=JSON.parse(read('ui/lessons.json'));
-const catalog=Object.entries(labs).map(([id,model])=>({id,tasks:model.tasks.map(t=>{
- const page=Number(String(t.page).replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).match(/\d+/)?.[0]);
- const lesson=lessons.find(l=>page>=l.start&&page<=l.end);
- if(!lesson)throw Error('Unmapped source page '+page+' '+id);
- return {...t,lesson:lesson.lesson,unit:lesson.unit};
-})}));
+import {books} from '../courses/index.mjs';
+const catalog=createCatalog(labs,books);
 assets['/catalog.json']=JSON.stringify(catalog);
 for(const lab of catalog){if(!assets['/'+lab.id+'/index.mjs'])throw Error('Missing simulator '+lab.id)}
 fs.mkdirSync('.generated',{recursive:true});fs.mkdirSync('dist/server',{recursive:true});fs.mkdirSync('dist/.openai',{recursive:true});

@@ -7,7 +7,7 @@ const btn=(label,fn,cls)=>{const e=h('button',label,cls);e.type='button';e.oncli
 const apps={explorer:'مستكشف الملفات',paint:'الرسام',settings:'الإعدادات',calc:'الحاسبة',help:'تعليمات سطح المكتب',alarm:'المنبه',practice:'نشاط التصنيف'}
 const roots=['desktop','docs','bin']
 const icons={folder:'📁',text:'📄',image:'🖼️',drawing:'🎨'}
-const theme={jade:'linear-gradient(135deg,#c3ebe4,#8db4b9 47%,#426b84)',blue:'linear-gradient(135deg,#bad8f5,#5281ac)',dune:'linear-gradient(135deg,#f0dcc1,#c69671)'}
+const theme={jade:'radial-gradient(ellipse at 29% 35%,#1590af,transparent 55%),linear-gradient(118deg,#073b68,#096a94 65%,#06486b)',blue:'linear-gradient(135deg,#bad8f5,#5281ac)',dune:'linear-gradient(135deg,#f0dcc1,#c69671)'}
 function paintCanvas(canvas,strokes){
   const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height)
   g.fillStyle='white';g.fillRect(0,0,canvas.width,canvas.height)
@@ -29,6 +29,8 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
   if(taskId==='alarm')app='alarm'
   if(taskId==='display')app='settings'
   let questionSet=taskId==='filetypes'?'filetypes':'hardware',timer=0,unmounted=false,audioContext=null,lastAlarm=''
+  let view='icons',settingsPane='display',brush='pen',paintFile=false,backStack=[],forwardStack=[]
+  const gridNumbers=new Intl.NumberFormat('ar-SA')
   const lookup=id=>state.nodes.find(n=>n.id===id)
   function report(msg){status.textContent=msg}
   function commit(op){
@@ -56,8 +58,8 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
   function paste(){if(!clip)return;const success=commit({type:clip.action,id:clip.id,parent:dir});if(success){if(clip.action==='move')clip=null;render();report('تم اللصق.')}}
   function clipboard(action){if(!selected)return;clip={id:selected,action};render();report(action==='move'?'تم القص. افتح المجلد المطلوب ثم الصق.':'تم النسخ. افتح المجلد المطلوب ثم الصق.')}
   function take(type){if(commit({type,id:selected})){selected='';render();report(type==='trash'?'نُقل العنصر إلى السلة.':'استُعيد العنصر.')}} 
-  function openDir(id){dir=id;selected='';app='explorer';minimized=false;start=false;render()}
-  function launch(id){app=id;minimized=start=false;render()}
+  function openDir(id,history=true){if(id!==dir&&history){backStack.push(dir);forwardStack=[]}dir=id;selected='';app='explorer';minimized=false;start=false;render()}
+  function launch(id){paintFile=false;app=id;minimized=start=false;render()}
   function openFile(id){
     const n=lookup(id);if(!n)return
     if(dir==='bin'){selected=id;take('restore');return}
@@ -83,14 +85,32 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
     const bounds=desk.getBoundingClientRect();panel.style.left=Math.max(4,Math.min(e.clientX-bounds.left,bounds.width-panel.offsetWidth-4))+'px'
     panel.style.top=Math.max(4,Math.min(e.clientY-bounds.top,bounds.height-panel.offsetHeight-4))+'px';panel.querySelector('button:not(:disabled)')?.focus()
   }
+  function creationMenu(e,parent=dir){
+    return ['جديد  ‹',()=>popup(e,[['مجلد',()=>{openDir(parent);create('folder')}],['مستند نصي',()=>{openDir(parent);create('text')}]])]
+  }
   function explorer(body){
     const top=h('div',undefined,'wm-path');const parent=lookup(dir)?.parent;const up=btn('↑',()=>openDir(parent));up.title='المجلد الأعلى';up.disabled=!parent
-    top.append(up,h('span',pathOf(state,dir)));body.append(top)
-    const ribbon=h('div',undefined,'wm-tools');buttons(cmds(),ribbon);body.append(ribbon)
+    function historyNav(from,to){
+      while(from.length){const target=from.pop();if(lookup(target)&&!pathOf(state,target).startsWith('سلة المحذوفات /')){to.push(dir);openDir(target,false);return}}
+      render()
+    }
+    const back=btn('→',()=>historyNav(backStack,forwardStack)),forward=btn('←',()=>historyNav(forwardStack,backStack))
+    back.ariaLabel='السابق';forward.ariaLabel='التالي';back.disabled=!backStack.length;forward.disabled=!forwardStack.length
+    const trail=h('div',undefined,'wm-trail');trail.append(h('span','▰'),h('span',pathOf(state,dir)))
+    top.append(back,forward,up,trail)
+    const tabs=h('div',undefined,'wm-tabs')
+    const home=btn('الشريط الرئيسي',()=>{ribbon.hidden=false;display.hidden=true;home.setAttribute('aria-pressed','true');layout.setAttribute('aria-pressed','false')})
+    const layout=btn('عرض',()=>{ribbon.hidden=true;display.hidden=false;home.setAttribute('aria-pressed','false');layout.setAttribute('aria-pressed','true')})
+    home.setAttribute('aria-pressed','true');layout.setAttribute('aria-pressed','false')
+    tabs.append(home,layout);body.append(tabs)
+    const ribbon=h('div',undefined,'wm-tools');buttons(cmds(),ribbon)
+    const display=h('div',undefined,'wm-tools');display.hidden=true
+    for(const [key,label] of [['icons','أيقونات'],['rows','قائمة']])display.append(btn(label,()=>{view=key;grid.classList.toggle('wm-rows',view==='rows')}))
+    body.append(ribbon,display,top)
     const split=h('div',undefined,'wm-split'),side=h('nav');side.setAttribute('aria-label','أماكن الملفات')
     for(const id of roots){const b=btn(lookup(id).name,()=>openDir(id));if(dir===id)b.className='current';side.append(b)}
-    const grid=h('div',undefined,'wm-files')
-    grid.oncontextmenu=e=>{if(e.target===grid){selected='';render();popup(e,cmds())}}
+    const grid=h('div',undefined,'wm-files'+(view==='rows'?' wm-rows':''))
+    grid.oncontextmenu=e=>{if(e.target===grid||e.target.classList.contains('wm-empty')){selected='';render();popup(e,dir==='bin'?cmds():[creationMenu(e),['لصق',paste,!clip]])}}
     grid.ondragover=e=>e.preventDefault();grid.ondrop=e=>{e.preventDefault();const id=e.dataTransfer.getData('application/x-maamel-node');if(id&&dir!=='bin'&&commit({type:'move',id,parent:dir}))render()}
     function dropInto(el,id){el.ondragover=e=>e.preventDefault();el.ondrop=e=>{e.stopPropagation();e.preventDefault();const item=e.dataTransfer.getData('application/x-maamel-node');if(item&&commit(id==='bin'?{type:'trash',id:item}:{type:'move',id:item,parent:id}))render()}}
     ;[...side.children].forEach((el,i)=>dropInto(el,roots[i]))
@@ -102,7 +122,7 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
       if(n.kind==='folder'&&dir!=='bin')dropInto(tile,n.id);grid.append(tile)
     }
     if(!grid.children.length)grid.append(h('p','المجلد فارغ','wm-empty'))
-    split.append(side,grid);body.append(split)
+    split.append(side,grid);body.append(split,h('div',gridNumbers.format(children(state,dir).length)+' عناصر','wm-footer'))
   }
   function saveDrawing(){
     if(!drawing.length){report('ارسم في اللوحة أولًا.');return}
@@ -116,31 +136,47 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
     })
   }
   function paint(body){
+    const tabs=h('div',undefined,'wm-tabs');const file=btn('ملف',()=>{paintFile=!paintFile;render()});file.setAttribute('aria-expanded',String(paintFile))
+    tabs.append(file,btn('الشريط الرئيسي',()=>{paintFile=false;render()}));body.append(tabs)
+    if(paintFile){const menu=h('div',undefined,'wm-paint-file');menu.append(btn('حفظ',()=>{paintFile=false;render();saveDrawing()}),btn('فتح رسم محفوظ',()=>{paintFile=false;openDir('docs')}));body.append(menu);return}
     const tools=h('div',undefined,'wm-tools'),ink=h('input');ink.type='color';ink.value=color;ink.setAttribute('aria-label','لون الفرشاة');ink.oninput=()=>color=ink.value
     const canvas=h('canvas',undefined,'wm-canvas');canvas.width=800;canvas.height=440
-    tools.append(ink,btn('تراجع',()=>{drawing.pop();paintCanvas(canvas,drawing)}),btn('حفظ',saveDrawing),btn('رسم جديد',()=>{if(drawing.length&&!drawId){report('احفظ الرسم الحالي أولًا.');return}drawId='';drawing=[];render()}))
+    const brushList=h('select');brushList.ariaLabel='أداة الرسم'
+    for(const [key,text] of [['pen','الفرشاة'],['eraser','الممحاة']]){const option=h('option',text);option.value=key;brushList.append(option)}
+    brushList.value=brush;brushList.onchange=()=>brush=brushList.value
+    tools.append(brushList,ink,btn('تراجع',()=>{drawing.pop();paintCanvas(canvas,drawing)}),btn('حفظ',saveDrawing),btn('رسم جديد',()=>{if(drawing.length&&!drawId){report('احفظ الرسم الحالي أولًا.');return}drawId='';drawing=[];render()}))
     let active=false
     const point=e=>{const r=canvas.getBoundingClientRect();return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height].map(x=>Math.max(0,Math.min(1,x)))}
-    canvas.onpointerdown=e=>{if(drawing.length>=500||active)return;active=true;canvas.setPointerCapture(e.pointerId);drawing.push({color,points:[point(e)]});paintCanvas(canvas,drawing)}
+    canvas.onpointerdown=e=>{if(drawing.length>=500||active)return;active=true;canvas.setPointerCapture(e.pointerId);drawing.push({color:brush==='eraser'?'#ffffff':color,points:[point(e)]});paintCanvas(canvas,drawing)}
     canvas.onpointermove=e=>{if(active&&drawing.at(-1).points.length<1000){drawing.at(-1).points.push(point(e));paintCanvas(canvas,drawing)}}
     canvas.onpointerup=canvas.onpointercancel=()=>active=false
     body.append(tools,canvas);paintCanvas(canvas,drawing)
   }
   function settings(body){
-    const form=h('div',undefined,'wm-settings')
+    const panel=h('div',undefined,'wm-settings-frame'),nav=h('nav'),form=h('div',undefined,'wm-settings')
+    const sections={display:'جهاز العرض',background:'الخلفية',sound:'الصوت',time:'التاريخ والوقت'}
+    nav.setAttribute('aria-label','أقسام الإعدادات')
+    for(const [key,text] of Object.entries(sections)){const b=btn(text,()=>{settingsPane=key;render()});if(key===settingsPane)b.setAttribute('aria-current','page');nav.append(b)}
+    form.append(h('h3',sections[settingsPane]));panel.append(nav,form);body.append(panel)
     function choice(label,opts,current,change){const l=h('label',label),s=h('select');for(const [value,text] of opts){const o=h('option',text);o.value=value;s.append(o)}s.value=current;s.onchange=()=>change(s.value);l.append(s);form.append(l)}
     function set(settings){if(commit({type:'settings',settings})){render();report('حُفظ الإعداد.')}}
-    choice('دقة الشاشة',['800×600','1280×800','1920×1200'].map(x=>[x,x]),state.settings.resolution,v=>{
+    if(settingsPane==='display')choice('دقة الشاشة',['800×600','1280×800','1920×1200'].map(x=>[x,x]),state.settings.resolution,v=>{
       desk.dataset.res=v
       dialog('هل تريد الاحتفاظ بإعدادات العرض؟',(form,dismiss)=>{dismiss.textContent='إرجاع';form.append(btn('الاحتفاظ بالتغييرات',()=>{closeModal();set({resolution:v})}),dismiss)})
       modal.addEventListener('close',()=>{desk.dataset.res=state.settings.resolution;render()},{once:true})
     })
     const backgrounds=[['jade','أفق أخضر'],['blue','سماوي'],['dune','رمال'],...state.nodes.filter(n=>n.kind==='drawing'&&!pathOf(state,n.id).startsWith(lookup('bin').name)).map(n=>[n.id,pathOf(state,n.id)])]
-    choice('خلفية سطح المكتب',backgrounds,state.settings.background,v=>set({background:v}))
+    if(settingsPane==='background')choice('خلفية سطح المكتب',backgrounds,state.settings.background,v=>set({background:v}))
     const vol=h('input');vol.type='range';vol.min=0;vol.max=100;vol.value=state.settings.volume;vol.onchange=()=>set({volume:Number(vol.value)});const vl=h('label','مستوى الصوت');vl.append(vol)
     const date=h('input');date.type='datetime-local';const now=new Date(Date.now()+state.settings.clockOffset);date.value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16)
     const dl=h('label','التاريخ والوقت داخل المحاكي');dl.append(date)
-    form.append(vl,dl,btn('ضبط الوقت',()=>{if(date.value)set({clockOffset:new Date(date.value).getTime()-Date.now()})}));body.append(form)
+    if(settingsPane==='sound')form.append(vl)
+    if(settingsPane==='time')form.append(dl,btn('ضبط الوقت',()=>{if(date.value)set({clockOffset:new Date(date.value).getTime()-Date.now()})}))
+    if(settingsPane==='display')form.append(h('div',state.settings.resolution,'wm-monitor'))
+    if(settingsPane==='background'){
+      const samples=h('div',undefined,'wm-backgrounds')
+      for(const [id,label] of backgrounds.filter(([id])=>theme[id])){const button=btn(label,()=>set({background:id}));button.style.backgroundImage=theme[id];button.setAttribute('aria-pressed',String(id===state.settings.background));samples.append(button)}form.append(samples)
+    }
   }
   function playTone(tone){
     const Audio=window.AudioContext||window.webkitAudioContext
@@ -217,13 +253,28 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
     }
     const first=btn('⊞  بدء',()=>{start=!start;render()});first.setAttribute('aria-expanded',String(start));bar.append(first,btn('الملفات',()=>openDir('docs')))
     if(app)bar.append(btn(apps[app],()=>{minimized=!minimized;render()}))
-    const clock=btn('',()=>launch('settings'),'wm-clock')
+    function settingsAt(key){settingsPane=key;launch('settings')}
+    const clock=btn('',()=>settingsAt('time'),'wm-clock')
     function tick(){const now=new Date(Date.now()+state.settings.clockOffset),hhmm=[now.getHours(),now.getMinutes()].map(v=>String(v).padStart(2,'0')).join(':'),key=now.toDateString()+hhmm
       if(state.settings.alarm?.enabled&&state.settings.alarm.time===hhmm&&key!==lastAlarm){lastAlarm=key;playTone(state.settings.alarm.tone);report('حان موعد المنبه.')}
       clock.textContent=now.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}
     tick();clearInterval(timer);timer=setInterval(()=>{if(!desk.isConnected){clearInterval(timer);return}tick()},30000)
-    clock.oncontextmenu=e=>popup(e,[['ضبط التاريخ والوقت',()=>launch('settings')]]);bar.append(btn('الصوت',()=>launch('settings')),clock)
-    if(start){const list=h('nav',undefined,'wm-start');list.setAttribute('aria-label','قائمة بدء');list.append(btn('المستندات',()=>openDir('docs')));for(const [id,t] of Object.entries(apps))list.append(btn(t,()=>launch(id)));bench.append(list)}
+    clock.oncontextmenu=e=>popup(e,[['ضبط التاريخ والوقت',()=>settingsAt('time')]]);bar.append(btn('الصوت',()=>settingsAt('sound')),clock)
+    if(start){
+      const list=h('nav',undefined,'wm-start');list.setAttribute('aria-label','قائمة بدء')
+      const search=h('input');search.type='search';search.placeholder='البحث في التطبيقات';search.ariaLabel=search.placeholder
+      const entries=h('div',undefined,'wm-app-list')
+      const shortcuts=h('div',undefined,'wm-start-rail')
+      shortcuts.append(btn('المستندات',()=>openDir('docs')),btn('إعدادات النظام',()=>settingsAt('display')))
+      const accessories=h('details');accessories.className='wm-accessories';accessories.append(h('summary','البرامج الملحقة'),btn('فتح الرسام',()=>launch('paint')))
+      function listApps(){
+        entries.replaceChildren();const query=search.value.trim()
+        for(const [id,t] of Object.entries(apps))if(t.includes(query))entries.append(btn(t,()=>launch(id)))
+        if(!query)entries.append(accessories);if(!entries.childElementCount)entries.append(h('p','لا توجد تطبيقات مطابقة.'))
+      }
+      search.oninput=listApps;search.onkeydown=e=>{if(e.key==='Enter')entries.querySelector('button')?.click()}
+      listApps();list.append(search,shortcuts,entries);bench.append(list);search.focus()
+    }
   }
   desk.addEventListener('pointerdown',e=>{if(menu&&!menu.contains(e.target))closeMenu()})
   desk.addEventListener('keydown',e=>{
@@ -240,7 +291,7 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
     }
     if(fn){e.preventDefault();fn()}
   })
-  bench.addEventListener('contextmenu',e=>{if(e.target===bench||e.target.className==='wm-shortcuts'){e.preventDefault();popup(e,[['مجلد جديد',()=>{openDir('desktop');create('folder')}],['إعدادات العرض',()=>launch('settings')],['تخصيص',()=>launch('settings')]])}})
+  bench.addEventListener('contextmenu',e=>{if(e.target===bench||e.target.className==='wm-shortcuts'){e.preventDefault();popup(e,[creationMenu(e,'desktop'),['مجلد جديد',()=>{openDir('desktop');create('folder')}],['إعدادات العرض',()=>{settingsPane='display';launch('settings')}],['تخصيص',()=>{settingsPane='background';launch('settings')}]])}})
   render()
   return ()=>{unmounted=true;clearInterval(timer);audioContext?.close().catch(()=>{});closeModal();host.replaceChildren()}
 }

@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {labs,validateLab,initial,grade} from '../registry.mjs';
-const lessons=JSON.parse(fs.readFileSync(new URL('../ui/lessons.json',import.meta.url)));
+const lessons=JSON.parse(fs.readFileSync(new URL('../courses/grade-04.json',import.meta.url))).lessons;
 for(const [id,lab] of Object.entries(labs)){
  test('Catalog, source pages, serialization and fresh-state grading: '+id,async()=>{
   assert.equal(typeof (await import('../'+id+'/index.mjs')).mount,'function');

@@ -11,3 +11,9 @@ test('web history replaces forward path and preserves search',()=>{let s=b.navig
 test('web saves the actual source and extract; click history alone earns no credit',()=>{let s=b.navigate(b.initial(),b.pages[2].url);assert.equal(b.grade(s,'privacy').score,0);s=b.save({...s,source:b.pages[2].url,note:b.pages[2].text,filename:'الخصوصية'});assert.equal(b.grade(s,'privacy').score,100);assert.ok(b.grade(s,'security').score<100);});
 test('AI crop, correct extracted text and saved review all required',()=>{let s=a.initial();assert.equal(a.grade(s).score,0);s={...s,rect:[0,98/220,1,45/220],recognized:a.lines[1],saved:a.lines[1]};assert.equal(a.grade(s).score,100);assert.ok(a.grade({...s,rect:[0,0,1,1]}).score<100);});
 test('safety assessment grades saved decisions independently',()=>{assert.equal(b.grade({safetyAnswers:{0:1,1:2,2:0}},'safety').score,100);assert.equal(b.grade({safetyDraft:{0:1,1:2,2:0}},'safety').score,0);});
+test('tabs restore independent history and keep the research document',()=>{
+ let s={...b.initial(),note:'بحثي'};s=b.navigate(s,b.pages[2].url);
+ s=b.tabAction(s,'add');assert.equal(s.history[s.cursor],b.HOME);
+ s=b.navigate(s,b.pages[3].url);s=b.tabAction(s,'select',0);assert.equal(s.history[s.cursor],b.pages[2].url);
+ s=b.tabAction(s,'close');assert.equal(s.history[s.cursor],b.pages[3].url);assert.equal(s.note,'بحثي');
+});

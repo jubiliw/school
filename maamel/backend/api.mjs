@@ -79,10 +79,14 @@ function workView(row,defaultState){
  return {state:JSON.parse(row.state),version:row.version,status:row.status,score:row.score,
  feedback:row.feedback==null?null:JSON.parse(row.feedback),updatedAt:row.updatedAt};
 }
-function parseAssignment(row){return {...row,task:JSON.parse(row.task)};}
+function parseAssignment(row){
+ const saved=JSON.parse(row.task);
+ if(saved?.format==='course-v1')return {...row,task:saved.task,grade:saved.grade,term:saved.term};
+ return {...row,task:saved};
+}
 const unrecognized=()=>fail(404,'لم يُعثر على المورد المطلوب.');
 
-export function createApi({grade,initial,validateLab}){
+export function createApi({grade,initial,validateLab,isAssigned}){
  async function handle(request,env){
  const url=new URL(request.url);
  const path=url.pathname.replace(/\/$/,'');
@@ -191,8 +195,11 @@ export function createApi({grade,initial,validateLab}){
   const task=b.task??null;
   if(JSON.stringify(task).length>4000)fail(400,'وصف النشاط طويل.');
   try{if((validateLab && !validateLab(lab,task)) || !initial(lab,task))throw Error();}catch{fail(400,'المختبر أو النشاط غير متاح.');}
-  const assignment={id:id(),title,classId:c.id,lab,task,dueAt:iso(b.dueAt),createdAt:today()};
-  await db.batch([query('INSERT INTO assignments VALUES(?,?,?,?,?,?,?)',assignment.id,c.id,title,lab,JSON.stringify(task),assignment.dueAt,assignment.createdAt),audit(user.id,'assignment.create',assignment.id)]);
+  const scoped=b.grade!==undefined||b.term!==undefined;
+  if(scoped&&!isAssigned?.(lab,task,b.grade,b.term))fail(400,'التدريب غير موجود في الصف والفصل المختارين.');
+  const persisted=scoped?{format:'course-v1',task,grade:b.grade,term:b.term}:task;
+  const assignment={id:id(),title,classId:c.id,lab,task,...(scoped?{grade:b.grade,term:b.term}:{}),dueAt:iso(b.dueAt),createdAt:today()};
+  await db.batch([query('INSERT INTO assignments VALUES(?,?,?,?,?,?,?)',assignment.id,c.id,title,lab,JSON.stringify(persisted),assignment.dueAt,assignment.createdAt),audit(user.id,'assignment.create',assignment.id)]);
   return json({assignment,id:assignment.id},201);
  }
  const match=path.match(/^\/api\/assignments\/([\da-f-]{36})(?:\/(work|submit|results|export|reopen|attempts))?$/);

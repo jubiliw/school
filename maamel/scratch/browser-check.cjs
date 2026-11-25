@@ -29,10 +29,16 @@ const server=http.createServer(async(req,res)=>{
  await click('⚑ تشغيل العلم');await page.waitForFunction(()=>document.querySelector('[role=status]').textContent==='اكتمل التنفيذ');
  await page.evaluate(()=>window.saved=JSON.parse(JSON.stringify(window.project)));
  await open('scratch',true);assert.equal(await getScore('loop'),100);
- const download=page.waitForEvent('download');await click('حفظ إلى الجهاز');const f=await download;
+ await page.getByText('ملف',{exact:true}).click();const download=page.waitForEvent('download');await click('حفظ إلى الجهاز');const f=await download;
  const payload=JSON.parse(await fs.readFile(await f.path(),'utf8'));assert.equal(payload.format,'maamel-scratch');assert.equal(payload.project.blocks[1].body[0].n,5);
  await open('scratch');await page.locator('input[type=file]').setInputFiles({name:'exercise.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(payload))});await page.waitForFunction(()=>document.querySelector('[role=status]').textContent==='فُتح المشروع.');assert.equal(await getScore('loop'),100);
- await open('robot');await click('قيادة · Drive');await click('مضاعفة');
+ await click('المظاهر');await click('رمادي');assert.equal(await page.evaluate(()=>window.project.costume),'slate');
+ await click('الأصوات');await click('اختيار صوت');await click('إضافة العصفور');assert.ok((await page.evaluate(()=>window.project.clips)).includes('bird'));
+ await click('المقاطع البرمجية');await click('اختيار خلفية');await page.getByRole('dialog').getByRole('button',{name:'كرة القدم',exact:true}).click();assert.equal(await page.evaluate(()=>window.project.scene),'football');
+ await page.getByText('تحرير',{exact:true}).click();await click('تراجع');assert.equal(await page.evaluate(()=>window.project.scene),'plain');
+ await click('إضافة ملحق');await click('إضافة القلم');await click('أنزل القلم');assert.equal(await page.evaluate(()=>window.project.blocks.at(-1).op),'down');
+ await open('robot');await click('SIM · المحاكاة');assert.equal(await page.locator('.view').isVisible(),false);await click('SIM · المحاكاة');
+ await click('تهيئة الروبوت');await page.getByLabel('عرض قراءات المستشعرات').uncheck();await click('المقطع البرمجي · NEPO');await click('قيادة · Drive');await page.getByText('خيارات اللبنة',{exact:true}).first().click();await click('مضاعفة');
  const speed=page.getByLabel('السرعة %',{exact:true}),dist=page.getByLabel('المسافة (سم)',{exact:true});
  await speed.nth(0).fill('50');await speed.nth(1).fill('100');await dist.nth(0).fill('50');await dist.nth(1).fill('50');assert.equal(await getScore('speed'),100);
  await click('▶ بدء المحاكاة');await click('■ إيقاف');assert.equal(await page.getByRole('status').textContent(),'متوقف');

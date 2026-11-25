@@ -10,21 +10,18 @@ export function select(label, options, run) {
   for(const [value,text] of options)s.add(new Option(text,value));s.onchange=()=>run(s.value);return s;
 }
 export function field(label, node){const l=el('label',label+' ');l.append(node);return l;}
+export function group(label,...nodes){
+ const g=el('section',null,'ogrp'), items=el('div',null,'ogtools');
+ g.setAttribute('aria-label',label);items.append(...nodes);g.append(items,el('div',label,'ogname'));return g;
+}
+export function command(label,glyph,run,iconOnly=false){
+ const b=button('',run);b.className='ocmd'+(iconOnly?' icon-only':'');b.setAttribute('aria-label',label);b.title=label;
+ const icon=el('span',glyph,'oglyph');icon.setAttribute('aria-hidden','true');b.append(icon);if(!iconOnly)b.append(el('span',label));return b;
+}
 export function shell(host, title, state, change, fresh, render, tasks) {
   host.replaceChildren(); const r=el('section',null,'ofc');r.dir='rtl';host.append(r);
-  const style=el('style',`
-.ofc{font:15px/1.5 system-ui,sans-serif;color:#172c35;background:#edf2f5;border:1px solid #c7d6d8;border-radius:12px;overflow:hidden;isolation:isolate}
-.ofc *{box-sizing:border-box}.ofc .obar,.ofc .oribbon,.ofc .otabs,.ofc .ostatus{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 11px}
-.ofc .obar{background:#1d4d58;color:white}.ofc .obar strong{margin-inline-end:auto}.ofc .oribbon{background:white;border-block:1px solid #ccd7dc}.ofc .otabs{background:#f4f8fa}
-.ofc button,.ofc select,.ofc input{font:inherit;color:#203d46;max-width:100%}.ofc button,.ofc select{border:1px solid #b4c9ce;border-radius:5px;padding:4px 8px;background:#fff;cursor:pointer;min-height:33px}.ofc button:hover{background:#e4f5ee}
-.ofc button:focus-visible,.ofc select:focus-visible,.ofc input:focus-visible{outline:3px solid #168077;outline-offset:1px}
-.ofc [aria-pressed=true]{background:#d6ebe6;border-color:#399077}.ofc .owork{padding:14px;min-height:260px;overflow:auto}
-.ofc .paper{margin:auto;background:#fff;border:1px solid #ccd8da;padding:clamp(10px,4vw,42px);color:#182b32}
-.ofc .ostatus{background:#f7fbfa;color:#38535b;font-size:.85rem;min-height:32px}
-.ofc dialog{color:#193340;background:white;border:1px solid #a7c1c5;border-radius:12px;padding:20px;max-width:min(430px,94%);box-shadow:0 15px 80px #0003}.ofc dialog::backdrop{background:#122d3759}.ofc dialog input:not([type=color]){width:100%;padding:7px;margin:8px 0}
-.ofc .odlg-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.ofc .oribbon label{display:inline-flex;align-items:center;gap:3px}.ofc input[type=color]{width:28px;height:28px;padding:0}.ofc [hidden]{display:none!important}
-`);r.append(style);
+  const css = document.createElement('link');css.rel='stylesheet';css.href=new URL('./ribbon.css',import.meta.url).href;r.append(css);
+  r.classList.add(title==='معالجة النصوص'?'office-word':title==='الجداول الإلكترونية'?'office-sheets':'office-slides');
   const top=el('div',null,'obar'), heading=el('strong'), tabs=el('nav',null,'otabs'), ribbon=el('div',null,'oribbon'), work=el('div',null,'owork'), status=el('div',null,'ostatus');status.setAttribute('role','status');
   function notify(msg){status.textContent=msg;}
   function touch(){heading.textContent=title+' · '+(state.name||'بدون اسم');change(structuredClone(state));}
@@ -47,8 +44,8 @@ export function shell(host, title, state, change, fresh, render, tasks) {
   function newFile(){dialog('إنشاء ملف جديد',[el('p','احفظ تعديلات الملف الحالي إذا أردت الرجوع إليها.')],[['إنشاء',()=>{state.name='';state.body=fresh().body;touch();render();notify('ملف جديد');}]]);}
   top.append(heading,button('حفظ',()=>save()),button('فتح',open));heading.textContent=title+' · '+(state.name||'بدون اسم');
   r.append(top,tabs,ribbon,work,status);r.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();save();}});
-  function tabset(items){tabs.replaceChildren();for(const [name,fn] of [['ملف',()=>ribbon.replaceChildren(button('جديد',newFile),button('فتح',open),button('حفظ',()=>save()),button('حفظ باسم',()=>save(true)))],...items]){
+  function tabset(items){tabs.replaceChildren();for(const [name,fn] of [['ملف',()=>ribbon.replaceChildren(group('إدارة الملف',button('جديد',newFile),button('فتح',open),button('حفظ',()=>save()),button('حفظ باسم',()=>save(true))))],...items]){
     const b=button(name,()=>{for(const t of tabs.children)t.setAttribute('aria-pressed','false');b.setAttribute('aria-pressed','true');ribbon.replaceChildren();fn();});tabs.append(b);}
     tabs.children[1]?.click();}
-  return {r,work,ribbon,tabs,notify,touch,dialog,tabset};
+  return {r,work,ribbon,tabs,top,notify,touch,dialog,tabset};
 }

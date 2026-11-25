@@ -2,7 +2,7 @@ import {paintScene} from '../robot/scene.mjs';
 const TAU=2*Math.PI;
 const circle=(c,x,y,r,fill)=>{c.beginPath();c.arc(x,y,r,0,TAU);fill?c.fill():c.stroke();};
 const path=(c,points,fill=false)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));if(fill)c.fill();else c.stroke();};
-function backdrop(c,kind,scene) {
+export function paintBackdrop(c,kind,scene) {
  const colors={plain:'#fff',grid:'#f1f7f6',grass:'#d1eff9',castle:'#f5ddbd',basketball:'#dda96a',football:'#319469',space:'#172953'};
  c.fillStyle=colors[scene]||'#fff';c.fillRect(-240,-180,480,360);
  c.lineWidth=2;c.strokeStyle='#fffa';
@@ -16,7 +16,7 @@ function backdrop(c,kind,scene) {
  }
  if(kind==='robot'&&scene==='grid'){c.strokeStyle='#8eb5ab45';c.lineWidth=.8;for(let x=-240;x<=240;x+=20)path(c,[[x,-180],[x,180]]);for(let y=-180;y<=180;y+=20)path(c,[[-240,y],[240,y]]);}
 }
-function sprite(c,kind,x,y,angle,scale=1){
+export function paintSprite(c,kind,x,y,angle,scale=1,costume){
  c.save();c.translate(x,y);c.scale(scale,scale);c.rotate(angle*Math.PI/180);c.lineJoin='round';
  if(kind==='robot'){
   c.fillStyle='#293a45';c.fillRect(-14,-13,25,5);c.fillRect(-14,8,25,5);
@@ -24,7 +24,7 @@ function sprite(c,kind,x,y,angle,scale=1){
   c.fillStyle='#f1fffa';circle(c,12,-4,2,true);circle(c,12,4,2,true);
  }else{
   c.strokeStyle='#98512b';c.lineWidth=4;c.lineCap='round';c.beginPath();c.moveTo(-9,3);c.bezierCurveTo(-24,-12,-23,12,-28,3);c.stroke();
-  c.fillStyle='#e69256';c.beginPath();c.ellipse(-3,3,13,9,0,0,TAU);c.fill();
+  c.fillStyle=({slate:'#82939b',sand:'#dabe87'})[costume]||'#e69256';c.beginPath();c.ellipse(-3,3,13,9,0,0,TAU);c.fill();
   path(c,[[0,-6],[1,-20],[9,-14],[16,-19],[19,-6]],true);circle(c,10,-5,11,true);
   c.fillStyle='#fff3da';c.beginPath();c.ellipse(13,-2,7,4,0,0,TAU);c.fill();c.fillStyle='#283941';circle(c,11,-7,1.3,true);circle(c,17,-7,1.3,true);
   c.strokeStyle='#98512b';c.lineWidth=3;path(c,[[-7,6],[-9,13],[-12,13]]);path(c,[[3,7],[6,13],[10,13]]);
@@ -33,7 +33,7 @@ function sprite(c,kind,x,y,angle,scale=1){
 }
 export function renderStage(canvas,state,kind,result,t=0,onPose){
  const c=canvas.getContext('2d');if(!c)return;
- c.save();c.scale(canvas.width/480,canvas.height/360);c.translate(240,180);backdrop(c,kind,state.scene);
+ c.save();c.scale(canvas.width/480,canvas.height/360);c.translate(240,180);paintBackdrop(c,kind,state.scene);
  const origin=result?.origin??{x:state.x||0,y:state.y||0,angle:0};
  const frames=result?.frames||[];
  const scale=kind==='robot'&&frames.length?Math.min(1,220/Math.max(220,...frames.map(p=>Math.abs(p.x))),155/Math.max(155,...frames.map(p=>Math.abs(p.y)))):1;
@@ -50,8 +50,8 @@ export function renderStage(canvas,state,kind,result,t=0,onPose){
   const k=l.time<=t?1:(t-l.start)/(l.time-l.start||1);
   c.strokeStyle=kind==='robot'?'#1e4248':'hsl('+l.color*3.6+' 78% 43%)';c.lineWidth=kind==='robot'?2:l.width;path(c,[[l.from.x,l.from.y],[l.from.x+(l.to.x-l.from.x)*k,l.from.y+(l.to.y-l.from.y)*k]]);
  }
- for(const s of result?.stamps||[])if(s.time<=t)sprite(c,kind,s.x,s.y,s.angle);
- sprite(c,kind,end.x,end.y,end.angle);c.restore();onPose?.(end);
+ for(const s of result?.stamps||[])if(s.time<=t)paintSprite(c,kind,s.x,s.y,s.angle,1,state.costume);
+ paintSprite(c,kind,end.x,end.y,end.angle,1,state.costume);c.restore();onPose?.(end);
  return result?.trace?.find(e=>e.op==='say'&&t>=e.start&&t<e.end)?.text||'';
 }
 export function playSound(ctx,name){

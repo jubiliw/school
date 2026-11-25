@@ -21,11 +21,13 @@ test('real grade-four animal folder assignment, save, disconnect, score 40%, reo
   const c=await api('classes','POST',{name:'رابع تجريبي'},t.cookie);
   assert.equal(c.status,201);
   assert.equal((await api('join','POST',{code:c.data.code},s.cookie)).status,200);
-  const assignment={classId:c.data.id,title:'صور الحيوانات',lab:'windows',task:'animals'};
+  const assignment={classId:c.data.id,title:'صور الحيوانات',lab:'windows',task:'animals',grade:4,term:1};
   const rejected=await api('assignments','POST',{...assignment,task:'absent'},t.cookie);assert.equal(rejected.status,400);
+  assert.equal((await api('assignments','POST',{...assignment,term:2},t.cookie)).status,400);
   const issued=await api('assignments','POST',assignment,t.cookie);assert.equal(issued.status,201);
   const work='assignments/'+issued.data.id;
-  let state=(await api(work,'GET',undefined,s.cookie)).data.work.state;
+  const loaded=(await api(work,'GET',undefined,s.cookie)).data;assert.equal(loaded.assignment.grade,4);assert.equal(loaded.assignment.term,1);
+  let state=loaded.work.state;
   const folder=(name,parent)=>{state=apply(state,{type:'create',kind:'folder',name,parent});return state.nodes.at(-1).id;};
   const root=folder('الحيوانات','docs'), categories=animals.map(a=>folder(a.category,root));
   const save=await api(work+'/work','PUT',{state,version:0},s.cookie);assert.equal(save.data.version,1);
