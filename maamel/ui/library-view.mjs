@@ -28,15 +28,19 @@ const strokes={
  ai:'M5 3v18h20 M2 7h19v18 M11 15l12-12',web:'M25 14a11 11 0 1 1-22 0 11 11 0 0 1 22 0z M3 14h22 M14 3q-9 11 0 22 9-11 0-22z'
 };
 function appIcon(id){return '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+strokes[id]+'"/></svg>'}
-function hero(guest){
- const action=guest?'<form class="code-entry"><label for="class-code">رمز الفصل</label><div><input id="class-code" name="code" required maxlength="64" placeholder="أدخل رمز معلمك" autocomplete="off" autocapitalize="characters"><button class="primary">دخول المعمل</button></div><output role="alert"></output></form>':'<a class="mint-link" href="#dashboard">واجباتي</a>';
- return '<section class="portal-hero"><div class="hero-text"><h1>'+(guest?'معملك الرقمي،<br><em>بين يديك.</em>':'معامل الحاسب')+'</h1><p>'+(guest?'افتح برامج الحاسب وطبّق دروسك من المدرسة أو البيت.':'اختر أحد برامج فصلك وابدأ العمل.')+'</p>'+action+'</div><div class="machine-scene" aria-hidden="true"><div class="mesh-floor"></div><img src="/ui/workstation.webp" alt="" width="860" height="690"></div></section>';
+function hero(guest,teacher,featured){
+ const buttons=featured.map((id,i)=>'<button type="button" data-preview="'+id+'" aria-pressed="'+(i===0)+'">'+appIcon(id)+'<span lang="en">'+english[id]+'</span></button>').join('');
+ const current=featured[0]||'word';
+ const images=featured.length?featured:[current];
+ const art=images.map((id,i)=>'<img class="scene-render" data-scene="'+id+'" src="/ui/scene-'+id+'.webp" alt="" width="840" height="650"'+(i?' hidden':' fetchpriority="high"')+'>').join('');
+ return '<section class="portal-hero"><div class="hero-text"><h1>'+(guest?'معملك الرقمي،<br><em>بين يديك.</em>':'معامل الحاسب')+'</h1><p>'+(guest?'جرّب برامج الحاسب وطبّق دروسك من المدرسة أو البيت.':'اختر معملك وابدأ تطبيق مهاراتك.')+'</p><div class="hero-actions"><a class="main-action" href="'+(guest?'#student':'#dashboard')+'">'+(guest?'دخول الطالب':teacher?'فصولي':'واجباتي')+'</a><a class="browse-action" href="#programs">استكشف المعامل</a></div></div><div class="live-scene"><div class="scene-stage"><div class="scene-shadow"></div><div class="scene-model">'+art+'</div></div>'+(buttons?'<div class="preview-dock" role="group" aria-label="معاينة البرامج">'+buttons+'</div>':'')+'</div></section>';
 }
-export function showLibrary(main,catalog,allowed=desktopPrograms(catalog),guestEntry=null,teacher=false){
+export function showLibrary(main,catalog,allowed=desktopPrograms(catalog),guestEntry=false,teacher=false){
  const order=['word','sheets','slides','python','windows','html','scratch','media','video','robot','av','web','ai'];
  const programs=order.filter(id=>allowed.includes(id));
  const groups=families.filter(([, ,ids])=>ids.some(id=>programs.includes(id)));
- main.innerHTML=hero(Boolean(guestEntry)).replace('>واجباتي<',teacher?'>فصولي<':'>واجباتي<')+'<section id="program-list" class="app-library"><div class="library-heading"><h2>'+(guestEntry?'استكشف المعامل':'المعامل المتاحة')+'</h2><span>'+new Intl.NumberFormat('ar-SA').format(programs.length)+' معمل</span></div><div class="family-filter" aria-label="تصفية المعامل">'+[['all','الكل'],...groups].map(([key,title],i)=>'<button type="button" aria-pressed="'+(i===0)+'" data-family="'+key+'">'+title+'</button>').join('')+'</div><div class="launch-grid"></div></section>';
+ const featured=['word','sheets','python'].filter(id=>programs.includes(id));
+ main.innerHTML=hero(Boolean(guestEntry),teacher,featured)+'<section id="program-list" class="app-library"><div class="library-heading"><h2>'+(guestEntry?'استكشف المعامل':'المعامل المتاحة')+'</h2><span>'+new Intl.NumberFormat('ar-SA').format(programs.length)+' معمل</span></div><div class="family-filter" aria-label="تصفية المعامل">'+[['all','الكل'],...groups].map(([key,title],i)=>'<button type="button" aria-pressed="'+(i===0)+'" data-family="'+key+'">'+title+'</button>').join('')+'</div><div class="launch-grid"></div></section>';
  const grid=main.querySelector('.launch-grid');
  function paint(family){
  const ids=family==='all'?programs:programs.filter(id=>groups.find(([key])=>key===family)[2].includes(id));
@@ -44,11 +48,25 @@ export function showLibrary(main,catalog,allowed=desktopPrograms(catalog),guestE
  }
  main.querySelector('.family-filter').onclick=e=>{const chip=e.target.closest('[data-family]');if(!chip)return;main.querySelectorAll('[data-family]').forEach(b=>b.setAttribute('aria-pressed',String(b===chip)));paint(chip.dataset.family)};
  paint('all');
- if(guestEntry){
- const form=main.querySelector('.code-entry'),input=form.elements.code;
- grid.onclick=e=>{const tile=e.target.closest('.launch-tile');if(!tile)return;e.preventDefault();form.dataset.lab=tile.hash;form.querySelector('output').textContent='أدخل رمز الفصل لفتح '+appTitles[tile.hash.split('/')[1]]+'.';input.focus()};
- form.onsubmit=async e=>{e.preventDefault();const submit=form.querySelector('button');submit.disabled=true;form.querySelector('output').textContent='';try{await guestEntry(input.value,form.dataset.lab)}catch(error){form.querySelector('output').textContent=error.message}finally{submit.disabled=false}};
- }
+ const stage=main.querySelector('.scene-stage');
+ const motion=matchMedia('(prefers-reduced-motion: reduce)');
+ stage.onpointermove=e=>{
+  if(motion.matches||e.pointerType==='touch')return;
+  const bounds=stage.getBoundingClientRect();
+  stage.style.setProperty('--tilt',((e.clientX-bounds.left)/bounds.width*10-5)+'deg');
+  stage.style.setProperty('--lift',((e.clientY-bounds.top)/bounds.height*6-3)+'deg');
+ };
+ stage.onpointerleave=()=>{stage.style.removeProperty('--tilt');stage.style.removeProperty('--lift')};
+ const dock=main.querySelector('.preview-dock');
+ if(dock)dock.onclick=e=>{
+  const button=e.target.closest('[data-preview]');if(!button)return;
+  dock.querySelectorAll('button').forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
+  stage.querySelectorAll('[data-scene]').forEach(image=>{image.hidden=image.dataset.scene!==button.dataset.preview});
+  stage.dataset.active=button.dataset.preview;
+ };
+ main.querySelector('.browse-action').onclick=e=>{e.preventDefault();main.querySelector('#program-list').scrollIntoView({behavior:motion.matches?'instant':'smooth'})};
+ if(guestEntry)grid.onclick=e=>{const tile=e.target.closest('.launch-tile');if(tile){e.preventDefault();location.hash='student/'+tile.hash.split('/')[1]}};
+
 }
 export function showProgram(main,catalog,id,grade,term){
  const scoped=grade&&term,lab=(scoped?programsFor(catalog,grade,term):catalog).find(l=>l.id===id);

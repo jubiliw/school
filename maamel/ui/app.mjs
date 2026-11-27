@@ -22,7 +22,7 @@ function auth(){
  },'<div class="tabs">'+button('دخول المعلم','teacher','outline')+'</div>');
  dialogBody.querySelector('[data-act=teacher]').onclick=()=>teacherAuth();
 }
-account.onclick=()=>{if(!user)return teacherAuth();modal('حساب '+escape(user.name),'<div class="stack">'+button('فتح لوحة الفصل','dash')+button('تسجيل الخروج','logout','outline')+'</div>');dialogBody.querySelector('[data-act=dash]').onclick=()=>{dialog.close();location.hash='dashboard'};dialogBody.querySelector('[data-act=logout]').onclick=async()=>{try{await api('logout','POST',{});user=null;account.textContent='دخول الحساب';dialog.close();for(const key of Object.keys(sessionStorage))if(key.startsWith('maamel-work:'))sessionStorage.removeItem(key);location.hash='home';await render()}catch(e){notify(e.message)}}};
+account.onclick=()=>{if(!user){location.hash='teacher';return}modal('حساب '+escape(user.name),'<div class="stack">'+button('فتح لوحة الفصل','dash')+button('تسجيل الخروج','logout','outline')+'</div>');dialogBody.querySelector('[data-act=dash]').onclick=()=>{dialog.close();location.hash='dashboard'};dialogBody.querySelector('[data-act=logout]').onclick=async()=>{try{await api('logout','POST',{});user=null;account.textContent='دخول الحساب';dialog.close();for(const key of Object.keys(sessionStorage))if(key.startsWith('maamel-work:'))sessionStorage.removeItem(key);location.hash='home';await render()}catch(e){notify(e.message)}}};
 function connect(action,handler){const el=main.querySelector('[data-act="'+action+'"]');if(el)el.onclick=handler}
 function lessonTask(lab,id){return catalog.find(l=>l.id===lab)?.tasks.find(t=>t.id===id)}
 function labelState(s){return ({submitted:'تم التسليم',pending:'لم يبدأ',draft:'مسودة',reopened:'أعيد فتحه'})[s]||''}
@@ -148,13 +148,24 @@ async function openDesktop(lab,epoch){
 async function render(){const epoch=++routeEpoch;destroy?.();destroy=null;const [view='home',id,task,extra,term]=(location.hash.slice(1)||'home').split('/').map(decodeURIComponent);document.body.classList.toggle('desktop-home',['home','course'].includes(view));main.innerHTML='<p class="lead" role="status">جارٍ الفتح…</p>';document.querySelectorAll('.bar nav a').forEach(a=>a.setAttribute('aria-current',(a.hash==='#home'?['home','course','program','lab','practice']:['dashboard','assignment','results']).includes(view)?'page':'false'));const nav=document.querySelector('.bar nav');nav.innerHTML=user?.role==='teacher'?'<a href="#dashboard">فصولي</a><a href="#programs">المعامل</a>':'<a href="#home">المعامل</a><a href="#dashboard">الواجبات</a>';
 try{if(!user){
  nav.innerHTML='<a href="#home">الرئيسية</a><button class="nav-link" type="button">المعامل</button>';
- nav.querySelector('button').onclick=()=>main.querySelector('#program-list')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+ nav.querySelector('button').onclick=()=>{const list=main.querySelector('#program-list');if(list)list.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});else location.hash='programs'};
  account.textContent='دخول المعلم';
- showLibrary(main,catalog,desktopPrograms(catalog),async(code,target)=>{
-  const session=await api('enter-class','POST',{code});user=session.user;account.textContent=user.name;
-  const next=target||(view==='lab'?location.hash:'#home');
-  if(location.hash===next)await render();else location.hash=next;
- });return;
+ if(view==='teacher'||view==='student'||view==='lab'){
+  const teacher=view==='teacher',register=teacher&&id==='register';
+  const destination=!teacher && desktopPrograms(catalog).includes(id)?id:null;
+  const fields=teacher?(register?field('اسم المعلم','name'):'')+field('اسم الدخول','username','text','autocomplete="username"')+field('كلمة المرور','password','password','autocomplete="'+(register?'new-password':'current-password')+'"') :field('رمز الفصل','code','text','maxlength="64" autocomplete="off" autocapitalize="characters" dir="ltr"');
+  main.innerHTML='<section class="access-card"><a href="#home">الرئيسية</a><h1>'+(teacher?(register?'اشتراك معلم':'دخول المعلم'):'دخول الطالب')+'</h1><p>'+(teacher?'فصولك وواجباتك ونتائج طلابك في مكان واحد.':destination?'أدخل رمز الفصل لفتح '+escape(names[destination])+'.':'استخدم الرمز الذي أعطاك إياه معلمك.')+'</p><form class="stack">'+fields+'<output role="alert"></output><button class="main-action">'+(teacher?(register?'إنشاء الحساب':'دخول'):'فتح المعامل')+'</button></form>'+(teacher?'<a href="'+(register?'#teacher':'#teacher/register')+'">'+(register?'لدي حساب معلم':'إنشاء حساب معلم')+'</a>':'')+'</section>';
+  const form=main.querySelector('form');
+  form.onsubmit=async e=>{e.preventDefault();const submit=form.querySelector('button');submit.disabled=true;try{
+   const data=Object.fromEntries(new FormData(form));
+   const result=await api(teacher?(register?'register':'login'):'enter-class','POST',teacher?{...data,role:'teacher'}:data);
+   user=result.user;account.textContent=user.name;location.hash=teacher?'dashboard':destination?'lab/'+destination:'home';
+  }catch(err){form.querySelector('output').textContent=err.message}finally{submit.disabled=false}};
+ }else{
+  showLibrary(main,catalog,desktopPrograms(catalog),true);
+  if(view==='programs')main.querySelector('#program-list').scrollIntoView();
+ }
+ return;
 }if((view==='home'||view==='course')&&user?.role==='teacher')await dashboard(epoch);
 else if(view==='home'||view==='course'||view==='programs'){
  const allowed=user?(await api('programs')).programs:desktopPrograms(catalog);
