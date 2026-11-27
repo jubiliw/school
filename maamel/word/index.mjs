@@ -32,7 +32,7 @@ function readDoc(doc){
  }
  for(const n of doc.childNodes)walk(n);if(!ps.length)begin(null);return ps;
 }
-export function mount(host,input,onChange,task){
+export function mount(host,input,onChange,task,drive){
  const state=structuredClone(input||initial(task));let ui,doc,savedRange,zoom=100,words;
  function capture(){const sel=window.getSelection();if(sel.rangeCount&&doc.contains(sel.anchorNode)&&doc.contains(sel.focusNode))savedRange=sel.getRangeAt(0).cloneRange();}
  function restore(){doc.focus();if(savedRange&&doc.contains(savedRange.commonAncestorContainer)){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(savedRange);}}
@@ -57,14 +57,42 @@ export function mount(host,input,onChange,task){
     select('الحدود',[['','الحدود ▾'],['Top','حد علوي'],['Bottom','حد سفلي'],['Right','حد أيمن'],['Left','حد أيسر'],['all','حدود خارجية'],['none','بلا حدود']],border),color('تظليل الفقرة',v=>blockStyle('backgroundColor',v),'#d7eee1'),select('اتجاه النص',[['rtl','من اليمين إلى اليسار'],['ltr','من اليسار إلى اليمين']],direction)),
    group('تحرير',command('بحث','⌕',find),cmd('تراجع','↶',()=>exec('undo')),cmd('إعادة','↷',()=>exec('redo'))));
  }
- function find(){const inp=el('input');inp.placeholder='النص المطلوب';const info=el('p');ui.dialog('البحث في المستند',[inp,info],[['بحث',()=>{const q=inp.value;if(!q)return false;const walker=document.createTreeWalker(doc,NodeFilter.SHOW_TEXT);let n;while(n=walker.nextNode()){const i=n.nodeValue.toLowerCase().indexOf(q.toLowerCase());if(i>=0){const rg=document.createRange();rg.setStart(n,i);rg.setEnd(n,i+q.length);savedRange=rg;setTimeout(restore,0);return true;}}info.textContent='لم يُعثر على النص.';return false;}]]);}
- function render(){savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))]]);
+ let searchPanel,clearMarks=()=>{};
+ function find(){
+  if(searchPanel?.isConnected){searchPanel.querySelector('input').focus();return;}
+  const panel=searchPanel=el('aside',null,'word-search'),input=el('input'),results=el('div'),count=el('output');
+  input.type='search';input.setAttribute('aria-label','بحث في المستند');count.setAttribute('aria-live','polite');
+  function close(){clearMarks();doc.removeEventListener('input',update);panel.remove();searchPanel=null;}
+  function update(){
+   clearMarks();results.replaceChildren();const ranges=[],q=input.value.trim();
+   if(q)for(const p of doc.querySelectorAll('p,li,div')){
+    const walker=document.createTreeWalker(p,NodeFilter.SHOW_TEXT),parts=[];let n,full='';
+    while(n=walker.nextNode()){parts.push({n,start:full.length});full+=n.data;}
+    let from=0,index;
+    while((index=full.toLocaleLowerCase().indexOf(q.toLocaleLowerCase(),from))!==-1){
+     const end=index+q.length,lo=parts.find(x=>x.start+x.n.length>index),hi=parts.find(x=>x.start+x.n.length>=end);
+     if(!lo||!hi)break;
+     const range=document.createRange();range.setStart(lo.n,index-lo.start);range.setEnd(hi.n,end-hi.start);ranges.push(range);
+     results.append(button(full.slice(Math.max(0,index-18),end+18),()=>{savedRange=range.cloneRange();restore();p.scrollIntoView({block:'nearest'});}));
+     from=end;
+    }
+   }
+   if(globalThis.CSS?.highlights&&globalThis.Highlight){CSS.highlights.set('maamel-matches',new Highlight(...ranges));clearMarks=()=>CSS.highlights.delete('maamel-matches');}
+   count.textContent=q?'عدد النتائج: '+ranges.length:'';
+  }
+  panel.append(el('strong','التنقل في المستند'),input,count,button('إغلاق البحث',close),results);ui.work.prepend(panel);input.oninput=update;doc.addEventListener('input',update);input.focus();
+ }
+ function render(){clearMarks();savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))]]);
   doc=el('article',null,'paper');doc.contentEditable='true';doc.setAttribute('role','textbox');doc.setAttribute('aria-label','صفحة المستند');doc.setAttribute('aria-multiline','true');doc.dir='auto';doc.style.cssText='min-height:410px;max-width:780px;outline-color:#258576;white-space:pre-wrap;overflow-wrap:anywhere;font:14pt/1.65 Arial,sans-serif';writeDoc(doc,state.body.paragraphs);doc.oninput=sync;
   doc.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();capture();find();}});
   doc.onpaste=e=>{e.preventDefault();exec('insertText',(e.clipboardData?.getData('text/plain')||'').slice(0,50000));};doc.ondrop=e=>e.preventDefault();
   doc.onkeyup=capture;doc.onpointerup=capture;doc.onfocusout=capture;ui.ribbon.onpointerdown=e=>{capture();if(e.target.tagName==='BUTTON')e.preventDefault();};
   words=el('span',state.body.paragraphs.map(plain).join(' ').trim().split(/\s+/).filter(Boolean).length+' كلمة');const zoomer=el('input');zoomer.type='range';zoomer.min=75;zoomer.max=150;zoomer.step=5;zoomer.value=zoom;zoomer.oninput=()=>{zoom=+zoomer.value;doc.style.zoom=zoom+'%';};const ruler=el('div',null,'ruler');ruler.setAttribute('aria-hidden','true');for(let n=0;n<16;n++)ruler.append(el('span',String(n)));
-  const foot=el('div',null,'ostatus wordfoot');foot.append(el('span','الصفحة ١'),words,field('تكبير العرض',zoomer));ui.work.append(ruler,doc,foot);
+  const foot=el('div',null,'ostatus wordfoot');foot.append(el('span','الصفحة ١'),words,field('تكبير العرض',zoomer));const quick=el('div',null,'word-touchbar');
+  const toggle=button('أدوات إضافية',()=>{const open=ui.r.classList.toggle('expanded-tools');toggle.setAttribute('aria-expanded',String(open));});
+  quick.append(command('غامق','B',()=>exec('bold'),true),command('مائل','𝑰',()=>exec('italic'),true),command('تسطير','U̲',()=>exec('underline'),true),color('لون',v=>exec('foreColor',v),'#16375b'),button('بحث',find),toggle);
+  quick.onpointerdown=e=>{capture();if(e.target.closest('button'))e.preventDefault()};
+  ui.work.append(quick,ruler,doc,foot);
  }
- ui=shell(host,'معالجة النصوص',state,onChange,()=>initial(task),render);render();
+ ui=shell(host,'معالجة النصوص',state,onChange,()=>initial(task),render,drive);render();return ()=>clearMarks();
 }

@@ -129,7 +129,7 @@ async function workspace(lab,taskId,assignmentId,epoch,grade,term){
  if(locked||revision)result(detail.work.score,detail.work.feedback);
  connect('save',()=>persist());connect('submit',()=>persist(true));const online=()=>{if(dirty&&!locked)persist()};window.addEventListener('online',online);if(dirty&&assignmentId)timer=setTimeout(()=>persist(),700);
  destroy=()=>{dead=true;clearTimeout(timer);window.removeEventListener('online',online);if(typeof cleanup==='function')cleanup();else cleanup?.destroy?.()}}
-async function openDesktop(lab,epoch){
+async function openDesktop(lab,epoch,fileId){
  if(!user){main.innerHTML='<section class="box"><p>سجّل الدخول لفتح المعمل بحسابك.</p>'+button('دخول الحساب','auth')+'</section>';connect('auth',()=>auth());auth();return}if(!(await api('programs')).programs.includes(lab))throw Error('لم يُتح لك هذا المعمل.');if(!desktopPrograms(catalog).includes(lab))throw Error('البرنامج غير متاح');
  const standalone=['html','python','video'].includes(lab);
  const ui=standalone?await import('/studio/'+(lab==='video'?'video':'code')+'.mjs'):await import('/'+lab+'/index.mjs');
@@ -140,9 +140,12 @@ async function openDesktop(lab,epoch){
  try{const saved=localStorage.getItem(key);if(saved)state=JSON.parse(saved)}catch{}
  main.innerHTML='<div class="workspace-head"><a href="#home">‹ المعامل</a><h1>'+escape(names[lab])+'</h1><span role="status">مساحة العمل على هذا الجهاز</span></div><div id="sim" class="workspace"></div>';
  const status=main.querySelector('[role=status]');
+ const drive=['word','windows'].includes(lab)?(await import('/office-common/word-drive.mjs')).wordDrive(localStorage,'maamel-desktop:'+user.id+':windows'):null;
+ if(epoch!==routeEpoch)return;
+ if(lab==='word'&&fileId){const f=drive.files().find(f=>f.id===fileId);if(!f)throw Error('الملف غير موجود.');Object.assign(state,{name:f.name,folder:f.folder,fileId:f.id,body:f.body});}
  const cleanup=ui.mount(main.querySelector('#sim'),state,next=>{
   try{localStorage.setItem(key,JSON.stringify(next));status.textContent='محفوظ على هذا الجهاز'}catch{status.textContent='تعذّر الحفظ على هذا الجهاز'}
- },standalone?lab:'free');
+ },standalone?lab:'free',drive);
  destroy=()=>{if(typeof cleanup==='function')cleanup();else cleanup?.destroy?.()};
 }
 async function render(){const epoch=++routeEpoch;destroy?.();destroy=null;const [view='home',id,task,extra,term]=(location.hash.slice(1)||'home').split('/').map(decodeURIComponent);document.body.classList.toggle('desktop-home',['home','course'].includes(view));main.innerHTML='<p class="lead" role="status">جارٍ الفتح…</p>';document.querySelectorAll('.bar nav a').forEach(a=>a.setAttribute('aria-current',(a.hash==='#home'?['home','course','program','lab','practice']:['dashboard','assignment','results']).includes(view)?'page':'false'));const nav=document.querySelector('.bar nav');nav.innerHTML=user?.role==='teacher'?'<a href="#dashboard">فصولي</a><a href="#programs">المعامل</a>':'<a href="#home">المعامل</a><a href="#dashboard">الواجبات</a>';
@@ -170,5 +173,5 @@ try{if(!user){
 else if(view==='home'||view==='course'||view==='programs'){
  const allowed=user?(await api('programs')).programs:desktopPrograms(catalog);
  if(epoch===routeEpoch)showLibrary(main,catalog,allowed,null,user.role==='teacher');
-}else if(view==='class')await classroom(id,epoch);else if(view==='program')showProgram(main,catalog,extra,id,task);else if(view==='lab')await openDesktop(id,epoch);else if(view==='practice')await workspace(id,task,null,epoch,extra,term);else if(view==='dashboard')await dashboard(epoch);else if(['assignment','results'].includes(view)){if(!user)return dashboard(epoch);if(view==='results')await results(id,epoch);else await workspace(null,null,id,epoch)}else showLibrary(main,catalog)}catch(e){if(epoch===routeEpoch){main.innerHTML='<section class="box"><p role="alert">'+escape(e.message)+'</p>'+button('إعادة المحاولة','retry','outline')+' <a href="#home">المختبرات</a></section>';connect('retry',render)}}window.scrollTo(0,0)}
+}else if(view==='class')await classroom(id,epoch);else if(view==='program')showProgram(main,catalog,extra,id,task);else if(view==='lab')await openDesktop(id,epoch,task);else if(view==='practice')await workspace(id,task,null,epoch,extra,term);else if(view==='dashboard')await dashboard(epoch);else if(['assignment','results'].includes(view)){if(!user)return dashboard(epoch);if(view==='results')await results(id,epoch);else await workspace(null,null,id,epoch)}else showLibrary(main,catalog)}catch(e){if(epoch===routeEpoch){main.innerHTML='<section class="box"><p role="alert">'+escape(e.message)+'</p>'+button('إعادة المحاولة','retry','outline')+' <a href="#home">المختبرات</a></section>';connect('retry',render)}}window.scrollTo(0,0)}
 try{const [data,session]=await Promise.all([fetch('/catalog.json').then(r=>r.json()),api('me').catch(()=>({user:null}))]);catalog=data;user=session.user;account.textContent=user?.name||'دخول الحساب';window.addEventListener('hashchange',render);await render()}catch{main.textContent='تعذر تحميل قائمة المختبرات. أعد تحميل الصفحة.'}

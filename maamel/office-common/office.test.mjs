@@ -26,7 +26,7 @@ test('word months require twelve actual numbered paragraphs',()=>{
 });
 test('worksheet parser calculates referenced expressions, Arabic digits, unary and precedence',()=>{
  const c={A1:{raw:'٤'},B1:{raw:'2'},C1:{raw:'=-(A1+B1)*2+20/4'}};assert.equal(sheets.evaluate(c,'C1'),-7);c.A1.raw='6';assert.equal(sheets.evaluate(c,'C1'),-11);
- for(const [raw,expected] of [['=1/0','#DIV/0!'],['=C1','#CYCLE!'],['=X51','#REF!'],['=5+','#VALUE!'],['=(A1+2','#VALUE!']]){c.C1.raw=raw;assert.equal(sheets.evaluate(c,'C1'),expected);}
+ for(const [raw,expected] of [['=1/0','#DIV/0!'],['=C1','#CYCLE!'],['=X51',0],['=Z10001','#REF!'],['=5+','#VALUE!'],['=(A1+2','#VALUE!']]){c.C1.raw=raw;assert.equal(sheets.evaluate(c,'C1'),expected);}
 });
 test('worksheet secret requires exact addresses and correct values',()=>{
  const s=sheets.initial('secret');for(const [a,raw] of Object.entries({A2:'ا',B3:'ل',C4:'ح',D5:'ا',E6:'س',F7:'ب'}))s.body.cells[a]={raw};full(sheets,s,'secret');

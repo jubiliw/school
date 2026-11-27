@@ -28,7 +28,7 @@ export function evaluate(cells,address,stack=new Set(),cache=new Map()){
   if(t==='+'||t==='-')return (t==='-'?-1:1)*atom();
   if(t==='('){const n=sum();if(tokens[pos++]!==')')throw error.value;return n;}
   if(/^\d*\.?\d+$/.test(t))return Number(t);
-  if(/^[A-H](?:[1-9]|1\d|20)$/.test(t)){
+  if(/^[A-Z][1-9]\d{0,4}$/.test(t)&&Number(t.slice(1))<=10000){
    const v=evaluate(cells,t,stack,cache);
    if(v==='')return 0;
    if(typeof v!=='number')throw Object.values(error).includes(v)?v:error.value;

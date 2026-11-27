@@ -16,7 +16,7 @@ function paintCanvas(canvas,strokes){
     if(stroke.points.length===1){g.arc(stroke.points[0][0]*canvas.width,stroke.points[0][1]*canvas.height,2,0,Math.PI*2);g.fill()}else g.stroke()
   }
 }
-export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'animals'){
+export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'animals',drive){
   host.replaceChildren()
   const link=h('link');link.rel='stylesheet';link.href=cssUrl
   const desk=h('section',undefined,'wm');desk.dir='rtl';desk.tabIndex=0;desk.setAttribute('aria-label','سطح المكتب التدريبي')
@@ -64,6 +64,7 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
     const n=lookup(id);if(!n)return
     if(dir==='bin'){selected=id;take('restore');return}
     if(n.kind==='folder')return openDir(id)
+    if(drive?.documentOf(n)){location.hash='lab/word/'+encodeURIComponent(n.id);return}
     if(n.kind==='drawing'){drawId=id;drawing=structuredClone(n.strokes);return launch('paint')}
     if(n.kind==='image'){
       const a=animals.find(v=>v.id===n.asset)

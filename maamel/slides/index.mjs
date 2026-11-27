@@ -13,7 +13,7 @@ export function mount(host,input,onChange,task){
  function reorder(from,to){if(from===to||to<0||to>=state.body.slides.length)return;const [s]=state.body.slides.splice(from,1);state.body.slides.splice(to,0,s);i=to;selected=null;touch();render();}
  function goto(n){i=n;selected=null;render();}
  function add(layout='content'){if(state.body.slides.length>=24){ui.notify('الحد 24 شريحة في هذا التدريب');return;}state.body.slides.splice(++i,0,slide(layout));selected=null;touch();render();}
- function addObject(kind,asset){if(active().items.length>=12){ui.notify('الحد 12 عنصرًا في الشريحة');return;}active().items.push({kind,asset,text:'',x:12,y:40,w:28,angle:0,frame:'none',animation:'none',duration:0.8,delay:0});selected=active().items.length-1;touch();paint();ui.tabs.children[6].click();}
+ function addObject(kind,asset,extra={}){if(active().items.length>=12){ui.notify('الحد 12 عنصرًا في الشريحة');return;}active().items.push({kind,asset,text:'',x:12,y:40,w:28,angle:0,frame:'none',animation:'none',duration:0.8,delay:0,...extra});selected=active().items.length-1;touch();paint();ui.tabs.children[6].click();}
  function itemChange(k,v){if(!item())return;item()[k]=v;touch();paint();}
  function home(){
   const font=active().font||state.body.font||'system-ui';
@@ -23,8 +23,23 @@ export function mount(host,input,onChange,task){
    group('فقرة',command('تعداد نقطي','•☰',()=>set('bullets',!active().bullets)),pick([['right','يمين'],['center','توسيط'],['left','يسار']],'المحاذاة',active().align||'right',v=>set('align',v))),
    group('عرض الشرائح',command('تشغيل العرض','▷',present)));
  }
+ async function importPicture(file){
+  if(!file)return;
+  if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)||file.size>20*1024*1024){ui.notify('اختر صورة PNG أو JPEG أو WebP أو GIF حتى 20 ميغابايت.');return;}
+  const target=active(),url=URL.createObjectURL(file);
+  try{
+   const img=new Image();img.src=url;await img.decode();
+   const canvas=document.createElement('canvas');const scale=Math.min(1,800/Math.max(img.width,img.height));
+   canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
+   const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+   const src=canvas.toDataURL('image/jpeg',.65);
+   if(JSON.stringify(state).length+2*src.length>520000){ui.notify('مساحة العرض لا تكفي لهذه الصورة. اختر صورة أصغر.');return;}
+   if(host.isConnected&&active()===target)addObject('image','device',{src,alt:file.name.slice(0,100)});
+  }catch{ui.notify('تعذّرت قراءة الصورة.');}finally{URL.revokeObjectURL(url);}
+ }
+ function selectPicture(){const input=el('input');input.type='file';input.accept='image/png,image/jpeg,image/webp,image/gif';input.onchange=()=>importPicture(input.files[0]);input.click();}
  function insert(){ui.ribbon.append(
-  group('صور',command('صورة','▧',()=>ui.dialog('اختر صورة من معرض التدريب',[],[['كرة السلة',()=>addObject('image','sport')],['الجبال',()=>addObject('image','landscape')]]))),
+  group('صور',button('صورة من هذا الجهاز',selectPicture),command('صور التدريب','▧',()=>ui.dialog('اختر صورة من معرض التدريب',[],[['كرة السلة',()=>addObject('image','sport')],['الجبال',()=>addObject('image','landscape')]]))),
   group('نص',command('مربع نص','▣',()=>addObject('text','')),command('WordArt','𝑨',()=>addObject('art',''))),
   group('وسائط',command('فيديو من مكتبة التدريب','▶',()=>addObject('video','sport-clip'))));}
  function design(){ui.ribbon.append(group('نُسق',pick([['plain','بسيط'],['basis','الأساس'],['coast','الساحل'],['date','الرمل']],'النسق',state.body.theme,v=>{state.body.theme=v;touch();paint();}),...Object.entries(themes).map(([id,colors])=>{const labels={plain:'بسيط',basis:'الأساس',coast:'الساحل',date:'الرمل'};const b=command(labels[id],'Aa',()=>{state.body.theme=id;touch();paint();ui.tabs.children[3].click();});b.style.backgroundColor=colors[0];b.style.borderBottom='3px solid '+colors[2];b.style.color=colors[1];b.setAttribute('aria-pressed',id===state.body.theme);return b;})),
@@ -51,14 +66,30 @@ export function mount(host,input,onChange,task){
   if(s.layout!=='blank')textBox('title','عنوان الشريحة',s.layout==='title'?19:6,23,true);
   if(!['blank','only'].includes(s.layout))textBox('text',s.layout==='title'?'العنوان الفرعي':'محتوى الشريحة',s.layout==='title'?51:35,s.layout==='title'?30:55,false);
   s.items.forEach((o,k)=>{const frame=el('div');frame.style.cssText='position:absolute;display:grid;align-items:start;touch-action:none;max-height:90%;transform-origin:center;';frame.style.left=o.x+'%';frame.style.top=o.y+'%';frame.style.width=Math.min(o.w,100-o.x)+'%';frame.style.transform='rotate('+o.angle+'deg)';if(o.frame==='frame')frame.style.border='4px solid white',frame.style.boxShadow='0 2px 7px #0006';if(!show&&selected===k)frame.style.outline='2px solid #187c73';
-   let n;if(o.kind==='image'){n=el('img');n.src=images[o.asset]||images.landscape;n.alt=o.asset==='sport'?'كرة سلة في الملعب':'منظر جبلي';n.draggable=false;}
+   let n;if(o.kind==='image'){n=el('img');const uploaded=o.asset==='device'&&typeof o.src==='string'&&o.src.startsWith('data:image/jpeg;base64,');n.src=uploaded?o.src:images[o.asset]||images.landscape;n.alt=uploaded?o.alt:o.asset==='sport'?'كرة سلة في الملعب':'منظر جبلي';n.draggable=false;}
    else if(o.kind==='video'){n=el('video');n.src=video;n.controls=show;n.preload='metadata';n.playsInline=true;n.title='مقطع تدريبي لكرة سلة';}
    else {n=el(show?'div':'textarea');if(show)n.textContent=o.text;else{n.value=o.text;n.placeholder=o.kind==='art'?'نص زخرفي':'أدخل النص';n.setAttribute('aria-label',n.placeholder);n.oninput=()=>{o.text=n.value;touch();};}
     n.style.cssText='min-height:2em;font:inherit;background:transparent;border:0;color:inherit;resize:vertical';if(o.kind==='art')n.style.textShadow='1px 2px #c89253',n.style.fontWeight='800';}
-   n.style.width='100%';frame.append(n);canvas.append(frame);
+   n.style.width='100%';if(o.kind==='image'&&o.ratio)n.style.aspectRatio=String(o.ratio),n.style.objectFit='fill';frame.append(n);canvas.append(frame);
    if(show){motion(frame,o.animation,o.motionDuration,o.delay);return;}
+   if(o.kind==='image'){
+    frame.classList.add('slide-picture');frame.classList.toggle('chosen',selected===k);
+    for(const [mode,label] of [['corner','تغيير الحجم من الزاوية'],['side','تغيير عرض الصورة'],['rotate','تدوير الصورة']]){
+     const grip=button('',()=>{});grip.className='picture-grip '+mode;grip.setAttribute('aria-label',label);frame.append(grip);
+     grip.onpointerdown=e=>{
+      e.stopPropagation();e.preventDefault();const box=canvas.getBoundingClientRect(),rect=frame.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+      const initial=o.w,height=frame.offsetHeight,width=frame.offsetWidth,angle=o.angle||0,rad=angle*Math.PI/180,start=Math.atan2(e.clientY-cy,e.clientX-cx);
+      grip.setPointerCapture(e.pointerId);
+      grip.onpointermove=ev=>{
+       if(mode==='rotate'){o.angle=Math.round((angle+(Math.atan2(ev.clientY-cy,ev.clientX-cx)-start)*180/Math.PI+540)%360-180);frame.style.transform='rotate('+o.angle+'deg)';}
+       else{const delta=(ev.clientX-e.clientX)*Math.cos(rad)+(ev.clientY-e.clientY)*Math.sin(rad);o.w=clamp(initial+delta/box.width*100,8,100-o.x);frame.style.width=o.w+'%';if(mode==='side'){o.ratio=(width+(o.w-initial)*box.width/100)/Math.max(1,height);n.style.aspectRatio=String(o.ratio);n.style.objectFit='fill';}}
+      };
+      grip.onpointerup=grip.onpointercancel=()=>{grip.onpointermove=null;touch();paint()};
+     };
+    }
+   }
    frame.tabIndex=0;frame.setAttribute('aria-label','تحديد العنصر '+(k+1));
-   const choose=()=>{selected=k;for(const other of canvas.querySelectorAll('[tabindex]'))other.style.outline='';frame.style.outline='2px solid #187c73';if(ui.tabs.children[5].getAttribute('aria-pressed')==='true')ui.tabs.children[5].click();else ui.tabs.children[6].click();};
+   const choose=()=>{selected=k;canvas.querySelectorAll('.slide-picture').forEach(f=>f.classList.toggle('chosen',f===frame));for(const other of canvas.querySelectorAll('[tabindex]'))other.style.outline='';frame.style.outline='2px solid #187c73';if(ui.tabs.children[5].getAttribute('aria-pressed')==='true')ui.tabs.children[5].click();else ui.tabs.children[6].click();};
    frame.onfocus=choose;frame.onpointerdown=e=>{choose();if(e.target.tagName==='TEXTAREA')return;e.preventDefault();const rect=canvas.getBoundingClientRect(),x=o.x,y=o.y,sx=e.clientX,sy=e.clientY;frame.setPointerCapture(e.pointerId);
     frame.onpointermove=ev=>{o.x=Math.round(clamp(x+(ev.clientX-sx)/rect.width*100,0,85));o.y=Math.round(clamp(y+(ev.clientY-sy)/rect.height*100,0,80));frame.style.left=o.x+'%';frame.style.top=o.y+'%';};frame.onpointerup=()=>{frame.onpointermove=null;touch();paint();ui.tabs.children[6].click();};};
    frame.onkeydown=e=>{if(e.target.tagName==='TEXTAREA')return;const d={ArrowLeft:[-2,0],ArrowRight:[2,0],ArrowUp:[0,-2],ArrowDown:[0,2]}[e.key];if(d){e.preventDefault();o.x=clamp(o.x+d[0],0,85);o.y=clamp(o.y+d[1],0,80);touch();paint();}};
