@@ -97,12 +97,15 @@ export function mount(host,input,onChange,task,drive){
  let searchPanel,clearMarks=()=>{};
  function find(){
   if(searchPanel?.isConnected){searchPanel.querySelector('input').focus();return;}
-  const panel=searchPanel=el('aside',null,'word-search'),input=el('input'),results=el('div'),count=el('output');
+  const panel=searchPanel=el('aside',null,'word-search'),input=el('input'),replacement=el('input'),results=el('div'),count=el('output');
+  let matches=[],replacing=false;replacement.setAttribute('aria-label','استبدال بـ');replacement.placeholder='استبدال بـ';
   input.type='search';input.setAttribute('aria-label','بحث في المستند');count.setAttribute('aria-live','polite');
   function close(){clearMarks();doc.removeEventListener('input',update);panel.remove();searchPanel=null;}
   function update(){
-   clearMarks();results.replaceChildren();const ranges=[],q=input.value.trim();
+   if(replacing)return;
+   clearMarks();results.replaceChildren();const ranges=matches=[],q=input.value.trim();
    if(q)for(const p of doc.querySelectorAll('p,li,div')){
+    if(p.querySelector('p,li,div'))continue;
     const walker=document.createTreeWalker(p,NodeFilter.SHOW_TEXT),parts=[];let n,full='';
     while(n=walker.nextNode()){parts.push({n,start:full.length});full+=n.data;}
     let from=0,index;
@@ -117,10 +120,32 @@ export function mount(host,input,onChange,task,drive){
    if(globalThis.CSS?.highlights&&globalThis.Highlight){CSS.highlights.set('maamel-matches',new Highlight(...ranges));clearMarks=()=>CSS.highlights.delete('maamel-matches');}
    count.textContent=q?'عدد النتائج: '+ranges.length:'';
   }
-  panel.append(el('strong','التنقل في المستند'),input,count,button('إغلاق البحث',close),results);ui.work.prepend(panel);input.oninput=update;doc.addEventListener('input',update);input.focus();
+  function replace(all){
+   if(!matches.length)return;
+   const current=matches.find(r=>savedRange&&r.startContainer===savedRange.startContainer&&r.startOffset===savedRange.startOffset);
+   const targets=all?[...matches].reverse():[current||matches[0]];
+   replacing=true;
+   try{for(const range of targets){
+    if(!doc.contains(range.startContainer))continue;savedRange=range.cloneRange();restore();
+    if(replacement.value)document.execCommand('insertText',false,replacement.value);else document.execCommand('delete',false,null);
+   }}finally{replacing=false;sync();update();}
+  }
+  panel.append(el('strong','البحث والاستبدال'),input,replacement,count,button('استبدال',()=>replace(false)),button('استبدال الكل',()=>replace(true)),button('إغلاق البحث',close),results);ui.work.prepend(panel);input.oninput=update;doc.addEventListener('input',update);input.focus();
  }
- function render(){clearMarks();savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('جداول',button('جدول',insertTable)),group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))],['أدوات الجدول',tableTools]]);
-  doc=el('article',null,'paper');doc.contentEditable='true';doc.setAttribute('role','textbox');doc.setAttribute('aria-label','صفحة المستند');doc.setAttribute('aria-multiline','true');doc.dir='auto';doc.style.cssText='min-height:410px;max-width:780px;outline-color:#258576;white-space:pre-wrap;overflow-wrap:anywhere;font:14pt/1.65 Arial,sans-serif';writeDoc(doc,state.body.paragraphs);doc.oninput=sync;
+ function applyPage(){
+  const {orientation='portrait',margin='normal'}=state.body.page||{};
+  const wide=orientation==='landscape';doc.style.maxWidth=wide?'990px':'760px';doc.style.aspectRatio=wide?'297 / 210':'210 / 297';
+  doc.style.padding=({narrow:'clamp(10px,2.2vw,26px)',normal:'clamp(18px,5vw,64px)',wide:'clamp(24px,8vw,94px)'})[margin]||'5%';
+ }
+ function pageLayout(){
+  function setting(title,key,options,initial){
+   const control=select(title,options,v=>{(state.body.page||={})[key]=v;applyPage();ui.touch()});
+   control.value=state.body.page?.[key]||initial;return field(title,control);
+  }
+  ui.ribbon.append(group('إعداد الصفحة',setting('اتجاه الصفحة','orientation',[['portrait','عمودي'],['landscape','أفقي']],'portrait'),setting('الهوامش','margin',[['narrow','ضيقة'],['normal','عادية'],['wide','واسعة']],'normal')));
+ }
+ function render(){clearMarks();savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('جداول',button('جدول',insertTable)),group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))],['أدوات الجدول',tableTools],['تخطيط',pageLayout]]);
+  doc=el('article',null,'paper');doc.contentEditable='true';doc.setAttribute('role','textbox');doc.setAttribute('aria-label','صفحة المستند');doc.setAttribute('aria-multiline','true');doc.dir='auto';doc.style.cssText='min-height:410px;max-width:780px;outline-color:#258576;white-space:pre-wrap;overflow-wrap:anywhere;font:14pt/1.65 Arial,sans-serif';applyPage();writeDoc(doc,state.body.paragraphs);doc.oninput=sync;
   doc.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();capture();find();}});
   doc.onpaste=e=>{e.preventDefault();exec('insertText',(e.clipboardData?.getData('text/plain')||'').slice(0,50000));};doc.ondrop=e=>e.preventDefault();
   doc.onkeyup=capture;doc.onpointerup=capture;doc.onfocusout=capture;ui.ribbon.onpointerdown=e=>{capture();if(e.target.tagName==='BUTTON')e.preventDefault();};

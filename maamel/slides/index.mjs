@@ -105,16 +105,31 @@ export function mount(host,input,onChange,task){
    frame.onkeydown=e=>{if(e.target.tagName==='TEXTAREA')return;const d={ArrowLeft:[-2,0],ArrowRight:[2,0],ArrowUp:[0,-2],ArrowDown:[0,2]}[e.key];if(d){e.preventDefault();o.x=clamp(o.x+d[0],0,85);o.y=clamp(o.y+d[1],0,80);touch();paint();}};
   });
  }
- function drawThumbs(){thumbs.replaceChildren();state.body.slides.forEach((s,k)=>{const label=(k+1)+' · '+(s.title||'شريحة بلا عنوان'),b=button('',()=>goto(k));b.setAttribute('aria-label',label);b.className='slide-thumb';const mini=el('span',null,'thumb-content'),colors=themes[state.body.theme]||themes.plain;mini.style.background=colors[0];mini.style.borderBottom='3px solid '+colors[2];mini.style.color=colors[1];mini.append(el('strong',s.title||' '),el('small',s.text||' '));b.append(el('span',String(k+1)),mini);b.setAttribute('aria-pressed',k===i);b.draggable=true;b.ondragstart=e=>e.dataTransfer.setData('text/plain',String(k));b.ondragover=e=>e.preventDefault();b.ondrop=e=>{e.preventDefault();const from=Number(e.dataTransfer.getData('text/plain'));if(Number.isInteger(from)&&from>=0&&from<state.body.slides.length)reorder(from,k);};thumbs.append(b);});}
+ function drawThumbs(){thumbs.replaceChildren();state.body.slides.forEach((s,k)=>{const label=(k+1)+' · '+(s.title||'شريحة بلا عنوان'),b=button('',()=>goto(k));b.setAttribute('aria-label',label);b.className='slide-thumb';if(s.hidden){b.classList.add('hidden-in-show');b.setAttribute('aria-label',label+' · مخفية في العرض');}const mini=el('span',null,'thumb-content'),colors=themes[state.body.theme]||themes.plain;mini.style.background=colors[0];mini.style.borderBottom='3px solid '+colors[2];mini.style.color=colors[1];mini.append(el('strong',s.title||' '),el('small',s.text||' '));b.append(el('span',String(k+1)),mini);b.setAttribute('aria-pressed',k===i);b.draggable=true;b.ondragstart=e=>e.dataTransfer.setData('text/plain',String(k));b.ondragover=e=>e.preventDefault();b.ondrop=e=>{e.preventDefault();const from=Number(e.dataTransfer.getData('text/plain'));if(Number.isInteger(from)&&from>=0&&from<state.body.slides.length)reorder(from,k);};thumbs.append(b);});}
  function paint(){drawThumbs();content(stage,active());notes.value=active().notes;}
+ function slideSorter(){
+  const list=el('div',null,'sort-list');
+  function refresh(){
+   list.replaceChildren();state.body.slides.forEach((slide,k)=>{
+    const row=el('div'),choose=button((k+1)+' · '+(slide.title||'بدون عنوان'),()=>{dialog.close();goto(k)});
+    const move=d=>{const target=k+d;if(target<0||target>=state.body.slides.length)return;reorder(k,target);refresh();list.querySelectorAll('.sort-row')[target]?.querySelector('button')?.focus()};
+    const earlier=button('تقديم',()=>move(-1)),later=button('تأخير',()=>move(1));earlier.disabled=k===0;later.disabled=k===state.body.slides.length-1;
+    row.className='sort-row';row.append(choose,earlier,later,button(slide.hidden?'إظهار في العرض':'إخفاء من العرض',()=>{slide.hidden=!slide.hidden;touch();drawThumbs();refresh()}));list.append(row);
+   });
+  }
+  const dialog=ui.dialog('فارز الشرائح',[list],[]);refresh();
+ }
  function present(start=0){
-  let ix=Number.isInteger(start)?clamp(start,0,state.body.slides.length-1):0;const dlg=el('dialog');dlg.setAttribute('aria-label','عرض الشرائح');dlg.style.cssText='width:min(1000px,96vw);max-width:98vw;padding:12px';
-  const board=el('div'),tools=el('div',null,'odlg-actions'),counter=el('span'),speaker=el('p');speaker.hidden=true;const update=()=>{const s=state.body.slides[ix];content(board,s,true);motion(board,s.transition,s.duration);counter.textContent=(ix+1)+' / '+state.body.slides.length;speaker.textContent=s.notes||'لا توجد ملاحظات';};
-  const next=()=>{if(ix<state.body.slides.length-1){ix++;update();}else dlg.close();},prev=()=>{if(ix>0){ix--;update();}};
+  const indices=state.body.slides.map((slide,k)=>slide.hidden?null:k).filter(k=>k!==null);
+  if(!indices.length){ui.notify('كل الشرائح مخفية. أظهر شريحة من فارز الشرائح.');return;}
+  let cursor=indices.findIndex(k=>k>=(Number.isInteger(start)?start:0));if(cursor===-1){ui.notify('لا توجد شرائح ظاهرة بعد موضع البدء.');return;}
+  const dlg=el('dialog');dlg.setAttribute('aria-label','عرض الشرائح');dlg.style.cssText='width:min(1000px,96vw);max-width:98vw;padding:12px';
+  const board=el('div'),tools=el('div',null,'odlg-actions'),counter=el('span'),speaker=el('p');speaker.hidden=true;const update=()=>{const ix=indices[cursor],s=state.body.slides[ix];content(board,s,true);motion(board,s.transition,s.duration);counter.textContent=(ix+1)+' / '+state.body.slides.length;speaker.textContent=s.notes||'لا توجد ملاحظات';};
+  const next=()=>{if(cursor<indices.length-1){cursor++;update();}else dlg.close();},prev=()=>{if(cursor>0){cursor--;update();}};
   tools.append(button('السابق',prev),counter,button('التالي',next),button('ملاحظات المتحدث',()=>{speaker.hidden=!speaker.hidden;}),button('إنهاء العرض',()=>dlg.close()));dlg.append(board,tools,speaker);board.onclick=e=>{if(e.target.tagName!=='VIDEO')next();};ui.r.append(dlg);dlg.onclose=()=>dlg.remove();
   dlg.onkeydown=e=>{if(['ArrowRight','ArrowDown','Enter',' '].includes(e.key)&&e.target.tagName!=='BUTTON'){e.preventDefault();next();}else if(['Backspace','ArrowLeft','ArrowUp'].includes(e.key)){e.preventDefault();prev();}};update();dlg.showModal();dlg.tabIndex=-1;dlg.focus();
  }
- function render(){i=clamp(i,0,state.body.slides.length-1);ui.work.replaceChildren();ui.tabset([['الشريط الرئيسي',home],['إدراج',insert],['تصميم',design],['انتقالات',transitions],['حركات',animateTab],['تنسيق العنصر',handles],['عرض الشرائح',()=>ui.ribbon.append(group('بدء عرض الشرائح',command('من البداية • F5','▷',()=>present()),button('من الشريحة الحالية',()=>present(i))))]]);
+ function render(){i=clamp(i,0,state.body.slides.length-1);ui.work.replaceChildren();ui.tabset([['الشريط الرئيسي',home],['إدراج',insert],['تصميم',design],['انتقالات',transitions],['حركات',animateTab],['تنسيق العنصر',handles],['عرض الشرائح',()=>ui.ribbon.append(group('بدء عرض الشرائح',command('من البداية • F5','▷',()=>present()),button('من الشريحة الحالية',()=>present(i)),button('فارز الشرائح',slideSorter)))]]);
   thumbs=el('nav',null,'slide-nav');thumbs.setAttribute('aria-label','مصغرات الشرائح');stage=el('div');notes=el('textarea');notes.placeholder='ملاحظات المتحدث';notes.setAttribute('aria-label','ملاحظات المتحدث');notes.maxLength=1500;notes.className='notes-area';notes.oninput=()=>{active().notes=notes.value;touch();};const editor=el('div',null,'slide-editor'),body=el('div');body.append(stage,notes);editor.append(thumbs,body);ui.work.append(editor);paint();
  }
  ui=shell(host,'العروض التقديمية',state,onChange,()=>initial(task),render);ui.r.addEventListener('keydown',e=>{if(e.key==='F5'){e.preventDefault();present(e.shiftKey?i:0);}});render();

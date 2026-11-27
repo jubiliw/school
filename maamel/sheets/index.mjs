@@ -1,3 +1,5 @@
+import {readCSV,writeCSV} from './csv.mjs';
+import {chartData,drawChart} from './charts.mjs';
 import {el,button,command,field,group,select,shell} from '../office-common/ui.mjs';
 import {initial,evaluate} from './model.mjs';
 export function mount(host,input,onChange,task){
@@ -16,6 +18,7 @@ export function mount(host,input,onChange,task){
  function editCell(a,seed){anchor=active=a;edit=true;drawGrid();const i=grid.querySelector('input');i.focus();if(seed!==undefined){i.value=seed;}else i.select();}
  function move(dx,dy,extend=false){const c=Math.max(0,Math.min(cols.length-1,cols.indexOf(active[0])+dx)),row=Math.max(1,Math.min(10000,Number(active.slice(1))+dy));choose(cols[c]+row,extend);}
  function drawGrid(){
+  paintCharts();
   pos.value=active;bar.value=state.body.cells[active]?.raw||'';grid.replaceChildren();grid.dir=state.body.dir;
   const selected=new Set(range()),header=el('tr');header.append(el('th',''));const dir=state.body.dir==='rtl'?-1:1;
   function grip(th,horizontal,key){const handle=el('span',null,horizontal?'col-grip':'row-grip');handle.setAttribute('aria-hidden','true');th.append(handle);handle.onclick=e=>e.stopPropagation();handle.onpointerdown=e=>{
@@ -71,15 +74,52 @@ export function mount(host,input,onChange,task){
   }]]);
  }
  function functions(){ui.ribbon.append(group('مكتبة الدالات',...['SUM','AVERAGE','MIN','MAX','COUNT'].map(name=>button(name,()=>insertFunction(name)))));}
+ function dataTab(){
+  const input=el('input');input.type='file';input.accept='.csv,text/csv';input.hidden=true;
+  input.onchange=async()=>{
+   const file=input.files[0];if(!file)return;
+   try{
+    if(file.size>650000)throw Error('تجاوز الملف حجم الاستيراد.');
+    const cells=readCSV(await file.text());if(!host.isConnected)return;
+    ui.dialog('استيراد CSV',[el('p','سيحل محتوى الملف محل خلايا الورقة الحالية. يمكنك إلغاء الاستيراد لحفظها أولًا.')],[['استيراد',()=>{
+     state.body.cells=cells;state.body.charts=[];active=anchor='A1';firstRow=1;ui.touch();render();
+    }]]);
+   }catch(err){ui.notify(err.message);}finally{input.value='';}
+  };
+  const exportCSV=()=>{
+   const blob=new Blob([writeCSV(state.body.cells)],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=el('a');link.href=url;link.download=(state.body.sheetName||'ورقة')+'.csv';ui.r.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  };
+  ui.ribbon.append(group('ملفات CSV',button('استيراد CSV',()=>input.click()),button('تصدير CSV',exportCSV),input));
+ }
  function rename(){const inp=el('input');inp.maxLength=40;inp.value=state.body.sheetName;ui.dialog('اسم ورقة العمل',[inp],[['تسمية',()=>{if(!inp.value.trim())return false;state.body.sheetName=inp.value.trim();ui.touch();render();}]]);}
+ let chartHost;
+ function paintCharts(){
+  if(!chartHost)return;chartHost.replaceChildren();
+  for(const chart of state.body.charts||[]){
+   const section=el('section'),plot=el('div',null,'sheet-chart');
+   section.append(el('h3',chart.title),plot,button('تعديل المخطط',()=>chartDialog(chart)),button('حذف المخطط',()=>{state.body.charts.splice(state.body.charts.indexOf(chart),1);ui.touch();paintCharts()}));
+   chartHost.append(section);drawChart(plot,chart,chartData(state.body.cells,chart.source));
+  }
+ }
+ function chartDialog(existing){
+  const source=el('input'),title=el('input'),msg=el('output');
+  title.value=existing?.title||'مخطط البيانات';title.maxLength=80;source.dir='ltr';source.value=existing?.source||anchor+':'+active;
+  const type=select('نوع المخطط',[['column','أعمدة'],['line','خطي']],()=>{});type.value=existing?.kind||'column';
+  ui.dialog(existing?'تعديل المخطط':'إدراج مخطط',[field('عنوان المخطط',title),field('نطاق البيانات',source),type,msg],[['تطبيق',()=>{
+   const chart={title:title.value.trim()||'مخطط البيانات',source:source.value.trim().toUpperCase(),kind:type.value};
+   try{const d=chartData(state.body.cells,chart.source);if(!d.series.some(s=>s.points.some(Number.isFinite)))throw Error('اختر نطاقًا يحتوي على قيم رقمية.')}catch(err){msg.textContent=err.message;return false;}
+   if(existing)Object.assign(existing,chart);else(state.body.charts||=[]).push(chart);
+   ui.touch();paintCharts();
+  }]]);
+ }
  let rangeButton;
- function render(){edit=false;extendByTouch=false;rows=Object.keys(state.body.cells).reduce((max,a)=>Math.max(max,Number(a.slice(1))||1),50);reveal(+active.slice(1));ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['تخطيط الصفحة',layout],['صيغ',functions]]);
+ function render(){edit=false;extendByTouch=false;rows=Object.keys(state.body.cells).reduce((max,a)=>Math.max(max,Number(a.slice(1))||1),50);reveal(+active.slice(1));ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['تخطيط الصفحة',layout],['صيغ',functions],['بيانات',dataTab],['إدراج',()=>ui.ribbon.append(group('مخططات',button('إدراج مخطط',()=>chartDialog()))) ]]);
   pos=el('input');pos.className='address';pos.setAttribute('aria-label','مربع الاسم');pos.dir='ltr';pos.onkeydown=e=>{if(e.key!=='Enter')return;const a=pos.value.trim().toUpperCase();if(/^[A-Z][1-9]\d{0,4}$/.test(a)&&Number(a.slice(1))<=10000)choose(a);else{pos.value=active;ui.notify('أدخل عنوانًا بين A1 وZ10000.');}};bar=el('input');bar.setAttribute('aria-label','شريط الصيغة');bar.maxLength=350;bar.dir='auto';bar.style.flex='1';bar.onchange=()=>write(bar.value);bar.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();write(bar.value);choose(active);}};
   const formula=el('div',null,'formula');formula.append(pos,el('span','ƒx','fx'),bar);grid=el('table');grid.style.cssText='border-collapse:collapse;background:white;min-width:100%;font-size:14px';const scroll=el('div',null,'gridbox');scroll.append(grid);
   const sheetTab=button(state.body.sheetName,rename);sheetTab.className='sheet-tab';sheetTab.title='إعادة تسمية ورقة العمل';const controls=el('div',null,'sheet-navigation');
   rangeButton=button('تحديد نطاق باللمس',()=>{extendByTouch=!extendByTouch;rangeButton.setAttribute('aria-pressed',String(extendByTouch));if(extendByTouch){anchor=active;ui.notify('اضغط آخر خلية في النطاق.');}});
   controls.append(rangeButton,button('الصفوف السابقة',()=>choose(active[0]+Math.max(1,firstRow-50),extendByTouch)),button('الصفوف التالية',()=>choose(active[0]+Math.min(10000,firstRow+50),extendByTouch)));
-  ui.work.append(formula,controls,scroll,sheetTab);drawGrid();
+  chartHost=el('div');ui.work.append(formula,controls,scroll,sheetTab,chartHost);drawGrid();
  }
  ui=shell(host,'الجداول الإلكترونية',state,onChange,()=>initial(task),render);render();
 }

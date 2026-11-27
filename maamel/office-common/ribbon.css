@@ -58,3 +58,11 @@
 .ofc .paper .word-table[data-border=dashed] td{border-style:dashed}
 .ofc .paper .word-table[data-border=none] td{border:0}
 .ofc .paper .word-table td p{margin:.1em 0}
+
+.ofc .sheet-chart{max-width:100%;overflow:auto;background:white;border:1px solid #d1d6da;padding:.5rem}
+.ofc .sheet-chart svg{display:block;direction:ltr}
+.ofc .sheet-chart p{display:flex;gap:.5rem;flex-wrap:wrap}
+.ofc .sort-list{display:grid;gap:.4rem;max-height:60vh;overflow:auto}
+.ofc .sort-row{display:flex;gap:.3rem;flex-wrap:wrap;border-bottom:1px solid #ccd3d6;padding:.4rem}
+.ofc .sort-row button:first-child{flex:1 0 100%;text-align:start}
+.ofc .slide-thumb.hidden-in-show .thumb-content{border-style:dashed;opacity:.65}
