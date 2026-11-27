@@ -60,9 +60,20 @@ export function mount(host,input,onChange,task){
   group('خلايا',sizeField(true),sizeField(false)));}
  function sizeField(horizontal){const title=horizontal?'عرض العمود':'ارتفاع الصف',options=horizontal?[85,110,145,185,230]:[30,40,55,70];return field(title,select(title,options.map(n=>[n,n]),v=>{if(horizontal)state.body.widths[active[0]]=+v;else state.body.heights[active.slice(1)]=+v;ui.touch();drawGrid();}));}
  function layout(){ui.ribbon.append(group('خيارات الورقة',button('تبديل اتجاه الورقة',()=>{state.body.dir=state.body.dir==='rtl'?'ltr':'rtl';ui.touch();drawGrid();})),group('حجم الخلايا',sizeField(true),sizeField(false)));}
+ function insertFunction(name){
+  const selection=range(),single=selection.length===1;
+  const inp=el('input');inp.dir='ltr';inp.value=single?'':selection[0]+':'+selection.at(-1);inp.placeholder='A1:A5';
+  ui.dialog(name,[field('النطاق',inp)],[['إدراج',()=>{
+   const ref=inp.value.trim().toUpperCase();
+   if(!/^[A-Z][1-9]\d{0,4}(?::[A-Z][1-9]\d{0,4})?$/.test(ref)||ref.split(':').some(a=>Number(a.slice(1))>10000)){ui.notify('أدخل نطاقًا صالحًا.');return false;}
+   if(!single){const last=selection.at(-1),row=Number(last.slice(1))+1,dest=selection[0][0]+row;if(row>10000||state.body.cells[dest]?.raw){ui.notify('اختر خلية فارغة للنتيجة ثم أدخل النطاق.');return false;}active=anchor=dest;reveal(row);}
+   write('='+name+'('+ref+')');
+  }]]);
+ }
+ function functions(){ui.ribbon.append(group('مكتبة الدالات',...['SUM','AVERAGE','MIN','MAX','COUNT'].map(name=>button(name,()=>insertFunction(name)))));}
  function rename(){const inp=el('input');inp.maxLength=40;inp.value=state.body.sheetName;ui.dialog('اسم ورقة العمل',[inp],[['تسمية',()=>{if(!inp.value.trim())return false;state.body.sheetName=inp.value.trim();ui.touch();render();}]]);}
  let rangeButton;
- function render(){edit=false;extendByTouch=false;rows=Object.keys(state.body.cells).reduce((max,a)=>Math.max(max,Number(a.slice(1))||1),50);reveal(+active.slice(1));ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['تخطيط الصفحة',layout]]);
+ function render(){edit=false;extendByTouch=false;rows=Object.keys(state.body.cells).reduce((max,a)=>Math.max(max,Number(a.slice(1))||1),50);reveal(+active.slice(1));ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['تخطيط الصفحة',layout],['صيغ',functions]]);
   pos=el('input');pos.className='address';pos.setAttribute('aria-label','مربع الاسم');pos.dir='ltr';pos.onkeydown=e=>{if(e.key!=='Enter')return;const a=pos.value.trim().toUpperCase();if(/^[A-Z][1-9]\d{0,4}$/.test(a)&&Number(a.slice(1))<=10000)choose(a);else{pos.value=active;ui.notify('أدخل عنوانًا بين A1 وZ10000.');}};bar=el('input');bar.setAttribute('aria-label','شريط الصيغة');bar.maxLength=350;bar.dir='auto';bar.style.flex='1';bar.onchange=()=>write(bar.value);bar.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();write(bar.value);choose(active);}};
   const formula=el('div',null,'formula');formula.append(pos,el('span','ƒx','fx'),bar);grid=el('table');grid.style.cssText='border-collapse:collapse;background:white;min-width:100%;font-size:14px';const scroll=el('div',null,'gridbox');scroll.append(grid);
   const sheetTab=button(state.body.sheetName,rename);sheetTab.className='sheet-tab';sheetTab.title='إعادة تسمية ورقة العمل';const controls=el('div',null,'sheet-navigation');

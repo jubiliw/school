@@ -21,10 +21,40 @@ export function evaluate(cells,address,stack=new Set(),cache=new Map()){
  if(typeof value!=='string'||value.length>350)return error.value;
  const src=arabicDigits(value.trim());
  if(!src.startsWith('='))return src!==''&&Number.isFinite(Number(src))?Number(src):value;
- const tokens=src.slice(1).toUpperCase().match(/[A-Z]+[1-9]\d*|(?:\d*\.\d+|\d+)|[^\s]/g)||[];
+ const tokens=src.slice(1).toUpperCase().match(/[A-Z]+[1-9]\d*|[A-Z]+|(?:\d*\.\d+|\d+)|[^\s]/g)||[];
  let pos=0;stack.add(address);
+ function aggregate(name){
+  if(tokens[pos++]!=='(')throw error.value;
+  const numbers=[];
+  do{
+   const first=tokens[pos];
+   if(/^[A-Z][1-9]\d*$/.test(first)&&tokens[pos+1]===':'){
+    const last=tokens[pos+2];if(!/^[A-Z][1-9]\d*$/.test(last)||+first.slice(1)>10000||+last.slice(1)>10000)throw error.ref;
+    pos+=3;
+    const lo=Math.min(+first.slice(1),+last.slice(1)),hi=Math.max(+first.slice(1),+last.slice(1));
+    const left=first[0]<last[0]?first[0]:last[0],right=first[0]>last[0]?first[0]:last[0];
+    for(const key of Object.keys(cells)){
+     const row=+key.slice(1);if(key[0]<left||key[0]>right||row<lo||row>hi)continue;
+     const v=evaluate(cells,key,stack,cache);if(Object.values(error).includes(v))throw v;if(typeof v==='number')numbers.push(v);
+    }
+   }else if(/^[A-Z][1-9]\d*$/.test(first)&&[',',';',')'].includes(tokens[pos+1])){
+    pos++;if(+first.slice(1)>10000)throw error.ref;
+    const v=evaluate(cells,first,stack,cache);if(Object.values(error).includes(v))throw v;if(typeof v==='number')numbers.push(v);
+   }else numbers.push(sum());
+   if(tokens[pos]===')')break;
+   if(![',',';'].includes(tokens[pos++]))throw error.value;
+  }while(pos<tokens.length);
+  if(tokens[pos++]!==')')throw error.value;
+  if(name==='COUNT')return numbers.length;
+  if(name==='MIN')return numbers.length?numbers.reduce((a,b)=>Math.min(a,b)):0;
+  if(name==='MAX')return numbers.length?numbers.reduce((a,b)=>Math.max(a,b)):0;
+  const total=numbers.reduce((a,b)=>a+b,0);
+  if(name==='AVERAGE'&&!numbers.length)throw error.zero;
+  return name==='AVERAGE'?total/numbers.length:total;
+ }
  function atom(){
   const t=tokens[pos++];
+  if(['SUM','AVERAGE','COUNT','MIN','MAX'].includes(t))return aggregate(t);
   if(t==='+'||t==='-')return (t==='-'?-1:1)*atom();
   if(t==='('){const n=sum();if(tokens[pos++]!==')')throw error.value;return n;}
   if(/^\d*\.?\d+$/.test(t))return Number(t);

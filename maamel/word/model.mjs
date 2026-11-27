@@ -8,7 +8,7 @@ export const tasks=[
 ];
 const paragraph=text=>({runs:[{text}]});
 export function initial(task){const id=taskId(task);const lines=id==='edit'?['التفاح لذيذ','إنه مفيد لصحتك أيضًا']:id==='headline'?['التغير المناخي','يبحث الطلاب أثر الاحتباس الحراري في مدينتهم.','يستعرض المقال طرق ترشيد الطاقة.']:[''];return {version:1,name:'',files:[],body:{paragraphs:lines.map(paragraph)}};}
-export function plain(p){return (p?.runs||[]).map(r=>typeof r?.text==='string'?r.text:'').join('');}
+export function plain(p){if(p?.type==='table')return p.rows.flatMap(row=>row.map(cell=>cell.blocks.map(plain).join(' '))).join(' ');return (p?.runs||[]).map(r=>typeof r?.text==='string'?r.text:'').join('');}
 function normalize(t){return t.trim().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').toLowerCase();}
 function styled(p,prop,predicate=Boolean){const runs=p?.runs?.filter(r=>r?.text?.trim());return !!runs?.length&&runs.every(r=>predicate(r[prop]));}
 export function grade(state,task){

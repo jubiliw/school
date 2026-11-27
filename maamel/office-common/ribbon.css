@@ -52,3 +52,9 @@
  .ofc.office-word .paper{padding:14px 10px}
  .ofc.office-word .owork{padding:2px;overflow:visible}
 }
+
+.ofc .paper .word-table{border-collapse:collapse;width:100%;table-layout:fixed;margin:.45em 0}
+.ofc .paper .word-table td{border:1px solid #6e7982;padding:.3em;vertical-align:top;min-height:1.5em}
+.ofc .paper .word-table[data-border=dashed] td{border-style:dashed}
+.ofc .paper .word-table[data-border=none] td{border:0}
+.ofc .paper .word-table td p{margin:.1em 0}

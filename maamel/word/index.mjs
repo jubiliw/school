@@ -1,3 +1,4 @@
+import {newTable,changeTable} from './table.mjs';
 import {el,button,command,field,group,select,shell} from '../office-common/ui.mjs';
 import {initial,plain} from './model.mjs';
 const fontPx=[0,10,13,16,18,24,32,48];
@@ -5,7 +6,9 @@ const safeColor=v=>/^(#[a-f0-9]{3,8}|rgb\([\d., %]+\)|yellow)$/i.test(v||'')?v:'
 function paraStyle(n,p){n.style.textAlign=['left','right','center','justify'].includes(p.align)?p.align:'';n.style.backgroundColor=safeColor(p.fill);if(p.border){const edge=['Top','Bottom','Left','Right'].includes(p.edge)?p.edge:'';n.style['border'+edge]='1px solid #47616a';}if(p.dir==='ltr'||p.dir==='rtl')n.dir=p.dir;}
 function writeDoc(doc,ps){
  doc.replaceChildren();let list=null;
- for(const p of ps){const numbered=['ol','ul'].includes(p.list);if(!numbered||list?.tagName.toLowerCase()!==p.list)list=null;
+ for(const p of ps){
+  if(p.type==='table'){list=null;doc.append(renderTable(p));continue;}
+  const numbered=['ol','ul'].includes(p.list);if(!numbered||list?.tagName.toLowerCase()!==p.list)list=null;
   if(numbered&&!list){list=el(p.list);doc.append(list);}
   const n=el(numbered?'li':'p');paraStyle(n,p);
   for(const run of p.runs||[]){const s=el('span',run.text);s.style.fontWeight=run.bold?'bold':'';s.style.fontStyle=run.italic?'italic':'';s.style.textDecoration=run.underline?'underline':'';
@@ -13,12 +16,21 @@ function writeDoc(doc,ps){
   if(!n.textContent)n.append(el('br'));(list||doc).append(n);
  }
 }
+function renderTable(model){
+ const table=el('table',null,'word-table');table.dataset.border=model.border||'solid';
+ for(const row of model.rows){const tr=table.insertRow();for(const cell of row){const td=tr.insertCell();td.colSpan=cell.span||1;td.style.backgroundColor=safeColor(cell.fill);writeDoc(td,cell.blocks);}}
+ return table;
+}
+function readTable(table){
+ return {type:'table',border:table.dataset.border||'solid',rows:Array.from(table.rows,row=>Array.from(row.cells,td=>({span:td.colSpan,fill:safeColor(td.style.backgroundColor),blocks:readDoc(td)})))};
+}
 function readDoc(doc){
  const ps=[];let p;
  function begin(n,list){p={runs:[]};if(list)p.list=list;if(n?.style.textAlign)p.align=n.style.textAlign;if(n?.style.border)p.border=true;else if(n){const edge=['Top','Bottom','Left','Right'].find(k=>n.style['border'+k+'Style']==='solid');if(edge){p.border=true;p.edge=edge;}}if(n?.dir)p.dir=n.dir;if(n?.style.backgroundColor)p.fill=n.style.backgroundColor;ps.push(p);}
  function walk(n,style={},list=null){
   if(n.nodeType===3){if(!p)begin(null,list);if(n.nodeValue)p.runs.push({text:n.nodeValue,...style});return;}
   if(n.nodeType!==1)return;const tag=n.tagName.toLowerCase(),css=n.style;
+  if(tag==='table'){ps.push(readTable(n));p=null;return;}
   if(tag==='br') {if(n.nextSibling)begin(null,list);return;}
   if(['ol','ul'].includes(tag)){p=null;for(const child of n.childNodes)walk(child,style,tag);p=null;return;}
   const block=['p','div','li'].includes(tag);if(block)begin(n,list);
@@ -46,6 +58,31 @@ export function mount(host,input,onChange,task,drive){
  function selectedParas(){restore();const sel=window.getSelection();if(!sel.rangeCount)return [];const rg=sel.getRangeAt(0);return [...doc.querySelectorAll('p,li,div')].filter(n=>rg.intersectsNode(n));}
  function border(which){for(const p of selectedParas()){p.style.border='';for(const k of ['Top','Bottom','Left','Right'])p.style['border'+k]='';if(which!=='none')p.style['border'+(which==='all'?'':which)]='1px solid #425563';}sync();}
  function direction(dir){for(const p of selectedParas())p.dir=dir;sync();}
+ function activeCell(){
+  const node=savedRange?.startContainer,cell=(node?.nodeType===1?node:node?.parentElement)?.closest('td');
+  return cell&&doc.contains(cell)?cell:null;
+ }
+ function insertTable(){
+  const rows=el('input'),cols=el('input');
+  for(const [field,max,value] of [[rows,200,3],[cols,30,3]]){field.type='number';field.min='1';field.max=String(max);field.value=String(value);}
+  ui.dialog('إدراج جدول',[field('عدد الأعمدة',cols),field('عدد الصفوف',rows)],[['إدراج',()=>{
+   try{
+    const table=renderTable(newTable(rows.valueAsNumber,cols.valueAsNumber));
+    setTimeout(()=>{restore();exec('insertHTML',table.outerHTML+'<p><br></p>');},0);
+   }catch(error){ui.notify(error.message);return false;}
+  }]]);
+ }
+ function editTable(op,value){
+  const td=activeCell();if(!td){ui.notify('ضع المؤشر داخل خلية من الجدول.');return;}
+  const table=td.closest('table'),model=readTable(table),row=td.parentElement.rowIndex,col=td.cellIndex;
+  try{if(op==='border')model.border=value;else if(op==='fill')model.rows[row][col].fill=value;else changeTable(model,row,col,op);}
+  catch(error){ui.notify(error.message);return;}
+  const next=renderTable(model);table.replaceWith(next);
+  const range=document.createRange();range.selectNodeContents(next.rows[row].cells[col]);range.collapse(true);savedRange=range;restore();sync();
+ }
+ function tableTools(){ui.ribbon.append(group('جدول',button('إدراج جدول',insertTable),button('صف أسفل',()=>editTable('row')),button('عمود تالٍ',()=>editTable('column'))),
+  group('خلايا',button('دمج مع الخلية التالية',()=>editTable('merge')),button('تقسيم الخلية المدمجة',()=>editTable('split'))),
+  group('تنسيق الجدول',select('حدود الجدول',[['solid','حدود متصلة'],['dashed','حدود متقطعة'],['none','بلا حدود']],v=>editTable('border',v)),color('تظليل الخلية',v=>editTable('fill',v),'#fff1ac')));}
  function home(){
   const cmd=(label,glyph,action)=>command(label,glyph,action,true);
   const fonts=select('نوع الخط',['Arial','Tahoma','Georgia','serif','monospace'].map(s=>[s,s]),v=>exec('fontName',v));
@@ -82,7 +119,7 @@ export function mount(host,input,onChange,task,drive){
   }
   panel.append(el('strong','التنقل في المستند'),input,count,button('إغلاق البحث',close),results);ui.work.prepend(panel);input.oninput=update;doc.addEventListener('input',update);input.focus();
  }
- function render(){clearMarks();savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))]]);
+ function render(){clearMarks();savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('جداول',button('جدول',insertTable)),group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))],['أدوات الجدول',tableTools]]);
   doc=el('article',null,'paper');doc.contentEditable='true';doc.setAttribute('role','textbox');doc.setAttribute('aria-label','صفحة المستند');doc.setAttribute('aria-multiline','true');doc.dir='auto';doc.style.cssText='min-height:410px;max-width:780px;outline-color:#258576;white-space:pre-wrap;overflow-wrap:anywhere;font:14pt/1.65 Arial,sans-serif';writeDoc(doc,state.body.paragraphs);doc.oninput=sync;
   doc.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();capture();find();}});
   doc.onpaste=e=>{e.preventDefault();exec('insertText',(e.clipboardData?.getData('text/plain')||'').slice(0,50000));};doc.ondrop=e=>e.preventDefault();
