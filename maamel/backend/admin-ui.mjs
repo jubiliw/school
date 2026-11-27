@@ -61,14 +61,14 @@ export function mount(host,request){
    if(!t)throw Error('لم يُعثر على اسم دخول معلم مطابق.');
    await call('schools/'+id+'/teachers','POST',{teacherId:t.id});
   }));
-  frag.append(planForm({schoolId:id},subscription));
+
   frag.append(form('حذف مدرسة فارغة',[control('اكتب اسم المدرسة للتأكيد','confirmName')],'حذف المدرسة',async b=>{await call('schools/'+id,'DELETE',b);selected='';}));
   return frag;
  }
  function planForm(owner,current){
   return form('ضبط الباقة وحد الفصول',[
-   control('الباقة','plan','',owner.ownerId?[['teacher','معلم']]:[['school','مدرسة'],['institution','مؤسسة']],current?.plan||(owner.ownerId?'teacher':'school')),
-   control('الحالة','status','',[['trial','تجربة'],['active','نشط'],['expired','منتهي']],current?.status||'trial'),
+   control('الباقة','plan','',[['teacher','معلم']],'teacher'),
+   control('الحالة','status','',[['active','نشط'],['expired','غير مفعّل']],current?.status||'expired'),
    control('إجمالي الفصول المسموح بها','classLimit','number',null,current?.classLimit??6),
    control('تاريخ الانتهاء (اختياري)','until','date',null,current?.validUntil?.slice(0,10)||'')
   ],'حفظ الباقة',b=>call('subscriptions','POST',{...owner,plan:b.plan,status:b.status,classLimit:Number(b.classLimit),validUntil:b.until?new Date(b.until+'T23:59:59+03:00').toISOString():null}));
@@ -95,7 +95,7 @@ export function mount(host,request){
    const names={teacher:'معلم',school:'مدرسة',institution:'مؤسسة',trial:'تجربة',active:'نشط',expired:'منتهي'};
    for(const s of result.subscriptions){
     const entry=row(el('span',names[s.plan]+' · '+names[s.status]+' · '+s.classLimit+' فصول'),el('code',s.ownerId||s.schoolId));
-    frag.append(entry,planForm(s.ownerId?{ownerId:s.ownerId}:{schoolId:s.schoolId},s));
+    frag.append(entry);if(s.ownerId)frag.append(planForm({ownerId:s.ownerId},s));
    }
   }else{
    for(const e of result.events)frag.append(row(el('span',e.action+' · '+e.target),el('time',new Date(e.createdAt).toLocaleString('ar-SA'))));

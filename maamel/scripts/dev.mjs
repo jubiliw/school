@@ -29,6 +29,7 @@ const storage=process.env.MAAMEL_DEV_DB||path.join(root,'.local','maamel.sqlite'
 if(storage!==':memory:')await mkdir(path.dirname(storage),{recursive:true});
 const DB=localDatabase(storage);
 DB.exec(await readFile(path.join(root,'backend/schema.sql'),'utf8'));
+if(!DB.sq.prepare("PRAGMA table_info(work)").all().some(c=>c.name==="extendedUntil"))DB.exec("ALTER TABLE work ADD COLUMN extendedUntil TEXT");
 const env={DB,ASSETS:{fetch:assetsFetch}};
 const port=Number(process.env.PORT||(process.argv.includes('--port')?process.argv[process.argv.indexOf('--port')+1]:process.argv[2])||4173);
 const server=createServer(async(req,res)=>{

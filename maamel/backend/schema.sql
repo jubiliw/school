@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS work(
  assignmentId TEXT NOT NULL REFERENCES assignments ON DELETE CASCADE,
  studentId TEXT NOT NULL REFERENCES users ON DELETE CASCADE,
  state TEXT NOT NULL, version INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('draft','submitted','reopened')),
- score REAL, feedback TEXT, updatedAt TEXT NOT NULL, reopened INTEGER NOT NULL DEFAULT 0,
+ score REAL, feedback TEXT, updatedAt TEXT NOT NULL, reopened INTEGER NOT NULL DEFAULT 0, extendedUntil TEXT,
  PRIMARY KEY(assignmentId,studentId)
 );
 CREATE TABLE IF NOT EXISTS attempts(
@@ -85,3 +85,9 @@ END;
 CREATE TABLE IF NOT EXISTS class_settings(classId TEXT PRIMARY KEY REFERENCES classes ON DELETE CASCADE, programs TEXT);
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS join_requests(classId TEXT NOT NULL REFERENCES classes ON DELETE CASCADE,studentId TEXT NOT NULL REFERENCES users ON DELETE CASCADE,PRIMARY KEY(classId,studentId));
+CREATE TABLE IF NOT EXISTS class_devices (
+ studentId TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ classId TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE
+);
+--> statement-breakpoint
+

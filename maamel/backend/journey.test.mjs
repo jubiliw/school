@@ -16,11 +16,14 @@ test('real grade-four animal folder assignment, save, disconnect, score 40%, reo
   }
   const credentials={password:'synthetic-long-passphrase'};
   const t=await api('register','POST',{...credentials,role:'teacher',username:'virtual_teacher',name:'معلم تجريبي'});
-  const s=await api('register','POST',{...credentials,role:'student',username:'virtual_student',name:'طالب تجريبي'});
-  assert.equal(t.status,201);assert.equal(s.status,201);
+  assert.equal((await api('classes','POST',{name:'رابع'},t.cookie)).status,402);
+  DB.sq.prepare("UPDATE subscriptions SET status='active' WHERE ownerId=?").run(t.data.user.id);
   const c=await api('classes','POST',{name:'رابع تجريبي'},t.cookie);
   assert.equal(c.status,201);
-  assert.equal((await api('join','POST',{code:c.data.code},s.cookie)).status,200);
+  const s=await api('enter-class','POST',{code:c.data.code});
+  assert.equal(s.status,201);
+  assert.ok((await api('programs','GET',undefined,s.cookie)).data.programs.includes('windows'));
+  assert.equal((await api('device-name','POST',{name:'طالب تجريبي'},s.cookie)).status,200);
   assert.equal((await api('classes/'+c.data.id+'/approve','POST',{students:[s.data.user.id]},t.cookie)).status,200);
   const assignment={classId:c.data.id,title:'صور الحيوانات',lab:'windows',task:'animals',grade:4,term:1};
   const rejected=await api('assignments','POST',{...assignment,task:'absent'},t.cookie);assert.equal(rejected.status,400);
@@ -32,9 +35,8 @@ test('real grade-four animal folder assignment, save, disconnect, score 40%, reo
   const folder=(name,parent)=>{state=apply(state,{type:'create',kind:'folder',name,parent});return state.nodes.at(-1).id;};
   const root=folder('الحيوانات','docs'), categories=animals.map(a=>folder(a.category,root));
   const save=await api(work+'/work','PUT',{state,version:0},s.cookie);assert.equal(save.data.version,1);
-  assert.equal((await api('logout','POST',{},s.cookie)).status,200);
-  const relog=await api('login','POST',{...credentials,username:'virtual_student'});
-  assert.equal(relog.status,200);assert.deepEqual((await api(work,'GET',undefined,relog.cookie)).data.work.state,state);
+  const relog=s;
+  assert.deepEqual((await api(work,'GET',undefined,relog.cookie)).data.work.state,state);
   const first=await api(work+'/submit','POST',{state,version:1,score:100},relog.cookie);
   assert.equal(first.data.score,40);
   assert.equal((await api(work+'/reopen','POST',{studentId:s.data.user.id},t.cookie)).status,200);
@@ -64,9 +66,12 @@ test('mixed grade follows the latest on-time submission and is visible to the st
    return {data:await res.json(),status:res.status,cookie:res.headers.get('Set-Cookie')?.split(';')[0]};
   }
   const reg=role=>call('register','POST',{name:role,username:role,password:'synthetic-password',role});
-  const t=await reg('teacher'),s=await reg('student'),studentId=s.data.user.id;
+  const t=await reg('teacher');
+  assert.equal((await reg('student')).status,400);
+  DB.exec("UPDATE subscriptions SET status='active'");
   const c=(await call('classes','POST',{name:'رابع'},t.cookie)).data;
-  await call('join','POST',{code:c.code},s.cookie);
+  const s=await call('enter-class','POST',{code:c.code}),studentId=s.data.user.id;
+  await call('device-name','POST',{name:'طالب'},s.cookie);
   await call('classes/'+c.id+'/approve','POST',{students:[studentId]},t.cookie);
   const body={classId:c.id,title:'جدول',lab:'sheets',task:'secret',grade:4,term:2,manualMax:20,startsAt:'2020-01-01T00:00:00Z',dueAt:'2099-01-01T00:00:00Z'};
   const a=await call('assignments','POST',body,t.cookie);assert.equal(a.status,201);
@@ -82,5 +87,15 @@ test('mixed grade follows the latest on-time submission and is visible to the st
   assert.equal((await mark(1)).status,409);
   DB.sq.prepare('UPDATE assignments SET dueAt=? WHERE id=?').run('2021-01-01T00:00:00Z',a.data.id);
   assert.equal((await sub(2)).status,403);
+  assert.equal((await call(path+'/reopen','POST',{studentId},t.cookie)).status,400);
+  const untilAt='2099-03-01T00:00:00.000Z';
+  assert.equal((await call(path+'/reopen','POST',{studentId,untilAt},t.cookie)).status,200);
+  assert.equal((await read()).data.assignment.dueAt,untilAt);
+  assert.equal((await sub(3)).status,200);
+  await call('classes/'+c.id,'PUT',{name:'رابع',programs:[]},t.cookie);
+  assert.equal((await read()).status,404);
+  DB.exec("UPDATE subscriptions SET status='expired'");
+  assert.deepEqual((await call('programs','GET',undefined,s.cookie)).data.programs,[]);
+  assert.equal((await call('enter-class','POST',{code:c.code})).status,404);
  }finally{DB.close()}
 });

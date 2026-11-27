@@ -103,8 +103,23 @@ export function createApi({grade,initial,validateLab,isAssigned}){
  const token=(request.headers.get('Cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(COOKIE+'='))?.slice(COOKIE.length+1);
  const tokenHash=token && /^[0-9a-f]{64}$/.test(token)?await digest(token):null;
  const user=tokenHash?await one('SELECT u.id,u.name,u.username,u.role FROM sessions s JOIN users u ON u.id=s.userId WHERE s.token=? AND s.expires>? AND u.suspended=0',tokenHash,Date.now()):null;
- if(method==='GET' && path==='/api/me')return json({user});
+ const paidOwner="SELECT p.ownerId FROM subscriptions p JOIN users owner ON owner.id=p.ownerId WHERE p.plan='teacher' AND p.status='active' AND owner.suspended=0 AND (p.validUntil IS NULL OR julianday(p.validUntil)>julianday('now'))";
+ const device=user?.role==='student'?await one('SELECT d.classId,EXISTS(SELECT 1 FROM members m WHERE m.classId=d.classId AND m.studentId=d.studentId) AS approved,EXISTS(SELECT 1 FROM join_requests j WHERE j.classId=d.classId AND j.studentId=d.studentId) AS pending FROM class_devices d WHERE studentId=?',user.id):null;
+ if(device)user.device=device;
  const input=()=>readBody(request);
+ if(method==='POST' && path==='/api/enter-class'){
+  if(user)fail(409,'سجّل الخروج أولًا لتغيير الفصل.');
+  await rateLimit(db,'class-entry:'+(request.headers.get('CF-Connecting-IP')||'development'),180,900000);
+  const code=field((await input()).code,1,64,'أدخل رمز الفصل.').toUpperCase();
+  const classroom=await one('SELECT id FROM classes WHERE code=? AND teacherId IN ('+paidOwner+')',code);
+  if(!classroom)fail(404,'تحقق من رمز الفصل وتفعيل اشتراك المعلم.');
+  const student=id(),session=randomHex(32),age=30*86400;
+  await db.batch([query("INSERT INTO users(id,username,name,role,passwordHash,salt,createdAt) VALUES(?,?,?,'student',?,?,?)",student,'device-'+student,'طالب','!',randomHex(16),today()),
+   query('INSERT INTO class_devices VALUES(?,?)',student,classroom.id),query('INSERT INTO sessions VALUES(?,?,?)',await digest(session),student,Date.now()+age*1000)]);
+  return json({user:{id:student,name:'طالب',role:'student',device:{classId:classroom.id,approved:0,pending:0}}},201,{'Set-Cookie':sessionCookie(session,age)});
+ }
+ if(method==='GET' && path==='/api/me')return json({user});
+
  if(method==='POST' && (path==='/api/register' || path==='/api/login')){
   const body=await input();
   const username=field(body.username,3,60,'استخدم اسم دخول من ٣ إلى ٦٠ حرفًا.').normalize('NFKC').toLowerCase();
@@ -120,12 +135,12 @@ export function createApi({grade,initial,validateLab,isAssigned}){
   let account;
   if(registering){
    if(password.length<10)fail(400,'استخدم كلمة مرور من عشرة أحرف أو أكثر.');
-   if(!['student','teacher'].includes(body.role))fail(400,'صفة الحساب غير صالحة.');
+   if(body.role!=='teacher')fail(400,'صفة الحساب غير صالحة.');
    const salt=randomHex(16);
    account={id:id(),name:field(body.name,1,80,'أدخل اسم العرض.'),username,role:body.role};
    statements.push(query('INSERT INTO users(id,username,name,role,passwordHash,salt,createdAt) VALUES(?,?,?,?,?,?,?)',
     account.id,username,account.name,account.role,await passwordHash(password,salt),salt,today()));
-   if(account.role==='teacher')statements.push(query('INSERT INTO subscriptions(id,ownerId,plan,status,validUntil,classLimit) VALUES(?,?,\'teacher\',\'trial\',?,?)',id(),account.id,new Date(Date.now()+30*86400000).toISOString(),6));
+   if(account.role==='teacher')statements.push(query('INSERT INTO subscriptions(id,ownerId,plan,status,validUntil,classLimit) VALUES(?,?,\'teacher\',\'expired\',?,?)',id(),account.id,null,6));
   }else{
    await rateLimit(db,'login:'+ip+':'+username,15,900000);
    account=await one('SELECT * FROM users WHERE username=?',username);
@@ -145,6 +160,13 @@ export function createApi({grade,initial,validateLab,isAssigned}){
   await db.batch([query('DELETE FROM sessions WHERE token=?',tokenHash),audit(user.id,'logout',user.id)]);
   return json({ok:true},200,{'Set-Cookie':sessionCookie('',0)});
  }
+ if(user.role==='teacher' && path!=='/api/account' && !await one('SELECT 1 WHERE ? IN ('+paidOwner+')',user.id))fail(402,'حساب المعلم بانتظار تفعيل الاشتراك.');
+ if(path==='/api/device-name' && method==='POST'){
+  if(!device||device.pending||device.approved)fail(409,'سبق طلب اعتماد الاسم.');
+  const name=field((await input()).name,2,80,'أدخل اسمك لدى المعلم.');
+  await db.batch([query('INSERT INTO join_requests(classId,studentId) VALUES(?,?)',device.classId,user.id),query('UPDATE users SET name=? WHERE id=?',name,user.id)]);
+  return json({ok:true});
+ }
  if(method==='GET' && path==='/api/classes'){
   const classes=user.role==='teacher'?await list('SELECT id,name,code,createdAt FROM classes WHERE teacherId=? ORDER BY createdAt DESC',user.id):
    await list('SELECT c.id,c.name,c.createdAt FROM classes c JOIN members m ON c.id=m.classId WHERE m.studentId=? ORDER BY c.createdAt DESC',user.id);
@@ -153,7 +175,7 @@ export function createApi({grade,initial,validateLab,isAssigned}){
  const programIds=['windows','word','slides','sheets','scratch','robot','media','ai','web','av','python','html','video'];
  if(method==='GET' && path==='/api/programs'){
   if(user.role!=='student')return json({programs:programIds});
-  const rows=await list('SELECT s.programs FROM members m LEFT JOIN class_settings s ON s.classId=m.classId WHERE m.studentId=?',user.id);
+  const rows=await list('SELECT s.programs FROM classes c LEFT JOIN class_settings s ON s.classId=c.id WHERE c.teacherId IN ('+paidOwner+') AND c.id IN (SELECT classId FROM members WHERE studentId=? UNION SELECT classId FROM class_devices WHERE studentId=?)',user.id,user.id);
   return json({programs:[...new Set(rows.flatMap(row=>row.programs===null?programIds:JSON.parse(row.programs)))]});
  }
  const classRoute=path.match(/^\/api\/classes\/([a-f0-9-]{36})(?:\/(approve))?$/);
@@ -183,24 +205,12 @@ export function createApi({grade,initial,validateLab,isAssigned}){
  if(method==='POST' && path==='/api/classes'){
   role(user,'teacher');
   const body=await input(),name=field(body.name,1,100,'أدخل اسم الفصل.'),classId=id(),code=randomHex(5).toUpperCase();
-  // A linked school's plan pools classroom slots across its teachers.
-  // Without a school plan, the teacher's individual allowance applies.
-  const inserted=await query(`WITH school_plan AS (
-    SELECT p.* FROM school_staff m JOIN subscriptions p ON p.schoolId=m.schoolId WHERE m.teacherId=?
-   ), effective AS (
-    SELECT schoolId,status,validUntil,classLimit FROM school_plan UNION ALL
-    SELECT NULL,status,validUntil,classLimit FROM subscriptions WHERE ownerId=? AND NOT EXISTS(SELECT 1 FROM school_plan)
-   )
-   INSERT INTO classes SELECT ?,?,?,?,? FROM effective e
-   WHERE e.status IN ('active','trial') AND (e.validUntil IS NULL OR e.validUntil>?)
-   AND (SELECT count(*) FROM classes c WHERE (e.schoolId IS NULL AND c.teacherId=?) OR
-    (e.schoolId IS NOT NULL AND c.teacherId IN (SELECT teacherId FROM school_staff WHERE schoolId=e.schoolId))) < e.classLimit`,
-   user.id,user.id,classId,user.id,name,code,today(),today(),user.id).run();
+  const inserted=await query(`INSERT INTO classes SELECT ?,?,?,?,? FROM subscriptions p WHERE ownerId=? AND ownerId IN (${paidOwner}) AND (SELECT count(*) FROM classes WHERE teacherId=p.ownerId)<p.classLimit`,classId,user.id,name,code,today(),user.id).run();
   if(!inserted.meta.changes)fail(403,'بلغت حد الفصول المتاح أو انتهت صلاحية الباقة.');
   return json({id:classId,name,code},201);
  }
  if(method==='POST' && path==='/api/join'){
-  role(user,'student'); const body=await input();
+  role(user,'student'); if(device)fail(403,'هذا الجهاز مرتبط بفصله.'); const body=await input();
   await rateLimit(db,'join:'+user.id,40,3600000);
   const code=field(body.code,1,64,'أدخل رمز الفصل.').toUpperCase();
   const found=await one('SELECT id,name FROM classes WHERE code=?',code);
@@ -209,12 +219,12 @@ export function createApi({grade,initial,validateLab,isAssigned}){
   return json(found);
  }
  const teacher=user.role==='teacher';
- const scope=teacher?'c.teacherId=?':'EXISTS(SELECT 1 FROM members m WHERE m.studentId=? AND m.classId=c.id)';
+ const scope=teacher?'c.teacherId=?':`c.teacherId IN (${paidOwner}) AND EXISTS(SELECT 1 FROM members m WHERE m.studentId=? AND m.classId=c.id) AND NOT EXISTS(SELECT 1 FROM class_settings s WHERE s.classId=c.id AND s.programs IS NOT NULL AND NOT EXISTS(SELECT 1 FROM json_each(s.programs) WHERE value=a.lab))`;
  const select=`SELECT a.*,c.name AS className FROM assignments a JOIN classes c ON c.id=a.classId WHERE ${scope}`;
  if(method==='GET' && path==='/api/assignments'){
   const rows=teacher?await list(select+' ORDER BY a.createdAt DESC',user.id):
-   await list(`SELECT a.*,c.name AS className,w.score,json_extract(w.feedback,'$.teacherPoints') AS teacherPoints,coalesce(w.status,'draft') AS status FROM assignments a JOIN classes c ON c.id=a.classId LEFT JOIN work w ON w.assignmentId=a.id AND w.studentId=? WHERE ${scope} ORDER BY a.createdAt DESC`,user.id,user.id);
-  return json({assignments:rows.map(parseAssignment)});
+   await list(`SELECT a.*,w.extendedUntil,c.name AS className,w.score,json_extract(w.feedback,'$.teacherPoints') AS teacherPoints,coalesce(w.status,'draft') AS status FROM assignments a JOIN classes c ON c.id=a.classId LEFT JOIN work w ON w.assignmentId=a.id AND w.studentId=? WHERE ${scope} ORDER BY a.createdAt DESC`,user.id,user.id);
+  return json({assignments:rows.map(row=>parseAssignment({...row,dueAt:row.extendedUntil??row.dueAt}))});
  }
  if(method==='POST' && path==='/api/assignments'){
   role(user,'teacher');
@@ -241,6 +251,10 @@ export function createApi({grade,initial,validateLab,isAssigned}){
   const record=await one(select+' AND a.id=?',user.id,assignmentId);
   if(!record)return unrecognized();
   const assignment=parseAssignment(record);
+  if(!teacher){
+   const extension=await one('SELECT extendedUntil FROM work WHERE assignmentId=? AND studentId=?',assignmentId,user.id);
+   assignment.dueAt=extension?.extendedUntil??assignment.dueAt;
+  }
   if(!teacher && assignment.startsAt>today())fail(403,'لم يبدأ وقت الواجب.');
   if(!action && method==='GET'){
    const row=teacher?null:await one('SELECT * FROM work WHERE assignmentId=? AND studentId=?',assignmentId,user.id);
@@ -253,7 +267,7 @@ export function createApi({grade,initial,validateLab,isAssigned}){
    if(!Number.isSafeInteger(b.version)||b.version<0 || !b.state || typeof b.state!=='object'||Array.isArray(b.state))fail(400,'نسخة العمل غير صالحة.');
    const current=await one('SELECT version,status,reopened FROM work WHERE assignmentId=? AND studentId=?',assignmentId,user.id);
    if((current?.version||0)!==b.version)fail(409,'تغيرت النسخة المحفوظة. أعد فتح العمل قبل الحفظ.');
-   if(assignment.dueAt && assignment.dueAt<today() && (assignment.startsAt||!current?.reopened))fail(403,'انتهى وقت التسليم.');
+   if(assignment.dueAt && assignment.dueAt<today())fail(403,'انتهى وقت التسليم.');
    const resubmitting=action==='submit' && assignment.startsAt && assignment.dueAt>=today();
    if(current?.status==='submitted'&&!resubmitting)fail(409,'سُلّم الواجب. يمكن للمعلم إعادة فتحه.');
    const submitting=action==='submit';
@@ -285,7 +299,7 @@ export function createApi({grade,initial,validateLab,isAssigned}){
     FROM members m JOIN users u ON u.id=m.studentId LEFT JOIN work w ON w.studentId=u.id AND w.assignmentId=?
     WHERE m.classId=? ORDER BY u.name,u.id`,assignmentId,assignmentId,assignment.classId);
    if(action==='results')return json({results});
-   const lines=[['الطالب','الحالة','الدرجة','عدد المحاولات'],...results.map(r=>[r.name,r.status,r.score,r.attempts])];
+   const lines=[['الطالب','الحالة','الدرجة','عدد المحاولات'],...results.map(r=>[r.name,r.status==='submitted' && (assignment.manualMax??100)>0 && r.teacherPoints==null?'بانتظار درجة المعلم':r.status,r.status==='submitted' && ((assignment.manualMax??100)===0||r.teacherPoints!=null)?r.score:null,r.attempts])];
    return new Response('\uFEFF'+lines.map(row=>row.map(csvCell).join(',')).join('\r\n'),{headers:{...safeHeaders,'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="maamel-results.csv"'}});
   }
   if(action==='grade'&&method==='PUT'){
@@ -301,8 +315,10 @@ export function createApi({grade,initial,validateLab,isAssigned}){
    return json({score});
   }
   if(action==='reopen' && method==='POST'){
-   role(user,'teacher'); const {studentId}=await input();
-   const result=await query("UPDATE work SET status='reopened',reopened=1,version=version+1,updatedAt=? WHERE assignmentId=? AND studentId=? AND status='submitted'",today(),assignmentId,String(studentId||'')).run();
+   role(user,'teacher'); const {studentId,untilAt}=await input();
+   const extension=iso(untilAt);
+   if((extension||assignment.dueAt) && (extension||assignment.dueAt)<=today())fail(400,'حدد نهاية جديدة بعد الوقت الحالي.');
+   const result=await query("UPDATE work SET status='reopened',reopened=1,extendedUntil=?,version=version+1,updatedAt=? WHERE assignmentId=? AND studentId=? AND status='submitted'",extension,today(),assignmentId,String(studentId||'')).run();
    if(!result.meta.changes)fail(409,'لا يوجد تسليم يمكن إعادة فتحه.');
    return json({ok:true});
   }

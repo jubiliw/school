@@ -14,7 +14,14 @@ function notify(message){clearTimeout(noticeTimeout);document.querySelector('#no
 function modal(title,html){document.querySelector('#dialog-title').textContent=title;dialogBody.innerHTML=html;if(!dialog.open)dialog.showModal()}
 document.querySelector('#close').onclick=()=>dialog.close();
 function form(title,fields,label,save,lead=''){modal(title,lead+'<form class="stack">'+fields+'<span class="formerror" role="alert"></span><button class="primary">'+label+'</button></form>');const f=dialogBody.querySelector('form');f.onsubmit=async e=>{e.preventDefault();const submit=f.querySelector('button');submit.disabled=true;try{await save(Object.fromEntries(new FormData(f)));dialog.close()}catch(err){f.querySelector('.formerror').textContent=err.message}finally{submit.disabled=false}}}
-function auth(register=false){const lead='<div class="tabs">'+button('تسجيل الدخول','login',register?'outline':'secondary')+button('حساب جديد','register',register?'secondary':'outline')+'</div>';form('حساب معامل',(register?select('نوع الحساب','role',opt('teacher','معلم')+opt('student','طالب'))+field('اسم العرض','name','text','maxlength="80" autocomplete="nickname" placeholder="يكفي اسم مستعار"'):'')+field('اسم الدخول','username','text','minlength="3" maxlength="60" autocomplete="username"')+field('كلمة المرور','password','password','minlength="'+(register?10:1)+'" autocomplete="'+(register?'new-password':'current-password')+'"')+(register?'<small>استخدم عشرة أحرف على الأقل لكلمة المرور.</small>':''),register?'إنشاء الحساب':'دخول',async data=>{const result=await api(register?'register':'login','POST',data);user=result.user;account.textContent=user.name;if(location.hash==='#dashboard'||(user.role==='student'&&location.hash.startsWith('#lab/')))await render();else location.hash='dashboard'},lead);dialogBody.querySelector('[data-act=login]').onclick=()=>auth(false);dialogBody.querySelector('[data-act=register]').onclick=()=>auth(true)}
+function teacherAuth(register=false){const lead='<div class="tabs">'+button('تسجيل الدخول','login',register?'outline':'secondary')+button('اشتراك معلم','register',register?'secondary':'outline')+'</div>';form('حساب المعلم',(register?field('اسم العرض','name','text','maxlength="80" autocomplete="nickname" placeholder="يكفي اسم مستعار"'):'')+field('اسم الدخول','username','text','minlength="3" maxlength="60" autocomplete="username"')+field('كلمة المرور','password','password','minlength="'+(register?10:1)+'" autocomplete="'+(register?'new-password':'current-password')+'"')+(register?'<small>استخدم عشرة أحرف على الأقل لكلمة المرور.</small>':''),register?'إنشاء الحساب':'دخول',async data=>{const result=await api(register?'register':'login','POST',{...data,role:'teacher'});user=result.user;account.textContent=user.name;if(location.hash==='#dashboard'||(user.role==='student'&&location.hash.startsWith('#lab/')))await render();else location.hash='dashboard'},lead);dialogBody.querySelector('[data-act=login]').onclick=()=>teacherAuth(false);dialogBody.querySelector('[data-act=register]').onclick=()=>teacherAuth(true)}
+function auth(){
+ form('دخول الطالب',field('رمز الفصل','code','text','dir="ltr" autocomplete="off"'),'فتح المعامل',async data=>{
+  const session=await api('enter-class','POST',data);user=session.user;account.textContent=user.name;
+  if(location.hash.startsWith('#lab/')||location.hash==='#home')await render();else location.hash='home';
+ },'<div class="tabs">'+button('دخول المعلم','teacher','outline')+'</div>');
+ dialogBody.querySelector('[data-act=teacher]').onclick=()=>teacherAuth();
+}
 account.onclick=()=>{if(!user)return auth();modal('حساب '+escape(user.name),'<div class="stack">'+button('فتح لوحة الفصل','dash')+button('تسجيل الخروج','logout','outline')+'</div>');dialogBody.querySelector('[data-act=dash]').onclick=()=>{dialog.close();location.hash='dashboard'};dialogBody.querySelector('[data-act=logout]').onclick=async()=>{try{await api('logout','POST',{});user=null;account.textContent='دخول الحساب';dialog.close();for(const key of Object.keys(sessionStorage))if(key.startsWith('maamel-work:'))sessionStorage.removeItem(key);location.hash='home';await render()}catch(e){notify(e.message)}}};
 function connect(action,handler){const el=main.querySelector('[data-act="'+action+'"]');if(el)el.onclick=handler}
 function lessonTask(lab,id){return catalog.find(l=>l.id===lab)?.tasks.find(t=>t.id===id)}
@@ -26,8 +33,16 @@ if(user.role==='teacher'){
  main.innerHTML='<div class="heading"><h1>فصولي</h1>'+button('إنشاء فصل','class')+'</div><section class="box">'+(classes.map(c=>'<div class="listrow"><a href="#class/'+encodeURIComponent(c.id)+'"><strong>'+escape(c.name)+'</strong></a><span>رمز الفصل <b dir="ltr">'+escape(c.code)+'</b></span></div>').join('')||'<p>أنشئ فصلك الأول لدعوة الطلاب برمز الفصل.</p>')+'</section>';
  connect('class',()=>form('إنشاء فصل',field('اسم الفصل','name'),'إنشاء',async data=>{const c=await api('classes','POST',data);location.hash='class/'+c.id}));return;
 }
+if(user.device){
+ user=(await api('me')).user;
+ if(!user?.device?.approved){
+  if(epoch!==routeEpoch)return;
+  main.innerHTML='<section class="box"><h1>الواجبات</h1>'+(user?.device?.pending?'<p>طلبك عند المعلم. بعد اعتماد اسمك تظهر واجباتك هنا.</p>'+button('تحديث','refresh','outline'):'<p>أرسل اسمك للمعلم حتى تُسجّل الواجبات والدرجات باسمك.</p>'+button('إرسال اسمي','identify'))+' <a href="#home">فتح المعامل</a></section>';
+  connect('refresh',render);connect('identify',()=>form('اسم الطالب',field('اسمك لدى المعلم','name'),'إرسال',async data=>{await api('device-name','POST',data);await render()}));return;
+ }
+}
 const {assignments}=await api('assignments');if(epoch!==routeEpoch)return;
-main.innerHTML='<div class="heading"><h1>الواجبات</h1>'+button('الانضمام برمز الفصل','join','outline')+'</div>'+assignmentRows(assignments,false);
+main.innerHTML='<div class="heading"><h1>الواجبات</h1>'+(!user.device?button('الانضمام برمز الفصل','join','outline'):'')+'</div>'+assignmentRows(assignments,false);
 connect('join',()=>form('الانضمام إلى فصل',field('رمز الفصل','code'),'إرسال',async data=>{await api('join','POST',data);notify('تم التحقق من الرمز. تظهر واجبات الفصل بعد اعتماد المعلم للانضمام.')}));}
 function assignmentRows(rows,teacher){
  return '<section class="box">'+(rows.map(x=>'<div class="listrow"><div><strong>'+escape(x.title)+'</strong><small>'+escape(x.className)+(x.dueAt?' · ينتهي '+escape(fmt.format(new Date(x.dueAt))):'')+'</small></div><div class="actions">'+(teacher?'':'<span>'+labelState(x.status)+(x.score!=null?' · '+(x.teacherPoints==null?'آلي ':'معتمد ')+escape(x.score)+'٪':'')+'</span>')+'<a class="outline" href="#'+(teacher?'results':'assignment')+'/'+encodeURIComponent(x.id)+'">'+(teacher?'نتائج الطلاب':'فتح الواجب')+'</a></div></div>').join('')||'<p>لا توجد واجبات حتى الآن.</p>')+'</section>';
@@ -47,7 +62,7 @@ async function classroom(id,epoch){
   const toggle=()=>f.querySelector('fieldset').hidden=f.elements.mode.value==='all';f.elements.mode.onchange=toggle;toggle();
  });
  if(c.pending.length){
-  main.insertAdjacentHTML('beforeend','<section class="box"><h2>طلبات الانضمام</h2>'+c.pending.map(u=>'<label class="listrow"><input type="checkbox" name="pending" value="'+escape(u.id)+'" checked><span>'+escape(u.name)+' · '+escape(u.username)+'</span></label>').join('')+button('اعتماد المحددين','approve')+'</section>');
+  main.insertAdjacentHTML('beforeend','<section class="box"><h2>طلبات الانضمام</h2>'+c.pending.map(u=>'<label class="listrow"><input type="checkbox" name="pending" value="'+escape(u.id)+'" checked><span>'+escape(u.name)+'</span></label>').join('')+button('اعتماد المحددين','approve')+'</section>');
   connect('approve',async()=>{try{await api('classes/'+id+'/approve','POST',{students:[...main.querySelectorAll('[name=pending]:checked')].map(n=>n.value)});await render()}catch(e){notify(e.message)}});
  }
 }
@@ -75,13 +90,13 @@ function assignmentEditor(classes){
  inputs.grade.onchange=updateTerms;inputs.term.onchange=updatePrograms;inputs.lab.onchange=updateTasks;updateTerms();
 }
 
-async function results(id,epoch){const [r,d]=await Promise.all([api('assignments/'+id+'/results'),api('assignments/'+id)]);if(epoch!==routeEpoch)return;main.innerHTML='<div class="lead"><a href="#class/'+encodeURIComponent(d.assignment.classId)+'">'+escape(d.assignment.className)+'</a><h1>'+escape(d.assignment.title)+'</h1></div><div class="heading"><h2>نتائج الطلاب</h2><a class="outline" href="/api/assignments/'+encodeURIComponent(id)+'/export" download>تصدير الدرجات CSV</a></div><div class="box">'+(r.results.map((x,i)=>'<div class="listrow"><div><b>'+escape(x.name)+'</b><small>'+labelState(x.status)+' · '+x.attempts+' محاولات</small></div><div class="actions"><strong>'+(x.score??'—')+(x.score!=null?'٪':'')+'</strong>'+(x.attempts?button('المحاولات','history'+i,'outline'):'')+(x.status==='submitted'?button('رصد درجة','grade'+i,'outline')+button('إعادة فتح','reopen'+i,'secondary'):'')+'</div></div>').join('')||'تظهر النتائج بعد انضمام الطلاب.')+'</div>';r.results.forEach((x,i)=>{
+async function results(id,epoch){const [r,d]=await Promise.all([api('assignments/'+id+'/results'),api('assignments/'+id)]);if(epoch!==routeEpoch)return;main.innerHTML='<div class="lead"><a href="#class/'+encodeURIComponent(d.assignment.classId)+'">'+escape(d.assignment.className)+'</a><h1>'+escape(d.assignment.title)+'</h1></div><div class="heading"><h2>نتائج الطلاب</h2><a class="outline" href="/api/assignments/'+encodeURIComponent(id)+'/export" download>تصدير الدرجات CSV</a></div><div class="box">'+(r.results.map((x,i)=>'<div class="listrow"><div><b>'+escape(x.name)+'</b><small>'+labelState(x.status)+' · '+x.attempts+' محاولات</small></div><div class="actions"><strong>'+(x.score!=null && (d.assignment.manualMax??100)>0 && x.teacherPoints==null?'آلي ':'')+(x.score??'—')+(x.score!=null?'٪':'')+'</strong>'+(x.attempts?button('المحاولات','history'+i,'outline'):'')+(x.status==='submitted'?button('رصد درجة','grade'+i,'outline')+button('إعادة فتح','reopen'+i,'secondary'):'')+'</div></div>').join('')||'تظهر النتائج بعد انضمام الطلاب.')+'</div>';r.results.forEach((x,i)=>{
  connect('grade'+i,()=>{
   const max=d.assignment.manualMax??100;
   form('رصد درجة '+x.name,field('نقاط المعلم من '+max,'points','number','min="0" max="'+max+'" step="0.01"'),'اعتماد الدرجة',async data=>{
    await api('assignments/'+id+'/grade','PUT',{studentId:x.studentId,points:Number(data.points),version:x.version});await render()
   },'<p>نتيجة التصحيح الآلي '+escape(x.autoScore)+'٪، ووزنها '+(100-max)+' من ١٠٠.</p>');
- });connect('reopen'+i,async()=>{try{await api('assignments/'+id+'/reopen','POST',{studentId:x.studentId});await render()}catch(e){notify(e.message)}});connect('history'+i,async()=>{try{const h=await api('assignments/'+id+'/attempts?studentId='+encodeURIComponent(x.studentId));modal('محاولات '+x.name,h.attempts.map((attempt,n)=>'<div class="box"><b>'+attempt.score+'٪</b> · '+fmt.format(new Date(attempt.submittedAt))+'<p>'+escape(summary(attempt.feedback))+'</p>'+button('عرض العمل المسلّم','inspect'+n,'outline')+'</div>').join(''));
+ });connect('reopen'+i,()=>form('إعادة فتح الواجب',field('موعد نهاية المهلة لهذا الطالب','until','datetime-local'),'فتح الواجب',async data=>{await api('assignments/'+id+'/reopen','POST',{studentId:x.studentId,untilAt:new Date(data.until).toISOString()});await render()} ));connect('history'+i,async()=>{try{const h=await api('assignments/'+id+'/attempts?studentId='+encodeURIComponent(x.studentId));modal('محاولات '+x.name,h.attempts.map((attempt,n)=>'<div class="box"><b>'+attempt.score+'٪</b> · '+fmt.format(new Date(attempt.submittedAt))+'<p>'+escape(summary(attempt.feedback))+'</p>'+button('عرض العمل المسلّم','inspect'+n,'outline')+'</div>').join(''));
 dialogBody.querySelectorAll('[data-act]').forEach((b,n)=>b.onclick=async()=>{
  const lab=d.assignment.lab;if(!lessonTask(lab,d.assignment.task))return;
  const ui=await import('/'+lab+'/index.mjs');
@@ -94,7 +109,7 @@ async function workspace(lab,taskId,assignmentId,epoch,grade,term){
  if(!assignmentId&&(!user||!(await api('programs')).programs.includes(lab)))throw Error('يلزم الحصول على صلاحية المعمل.');
  const task=lessonTask(lab,taskId);if(!task)throw Error('تعذر العثور على التدريب.');const [ui,model]=await Promise.all([import('/'+lab+'/index.mjs'),import('/'+lab+'/model.mjs')]);if(epoch!==routeEpoch)return;
  const place=task.placements.find(p=>p.grade===+grade&&p.term===+term)??task.placements[0];
- const key=assignmentId?'maamel-work:'+user.id+':'+assignmentId:'maamel-practice:'+lab+':'+task.id;const storage=assignmentId?sessionStorage:localStorage;let cached=null;try{cached=JSON.parse(storage.getItem(key))}catch{}
+ const key=assignmentId?'maamel-work:'+user.id+':'+assignmentId:'maamel-practice:'+user.id+':'+lab+':'+task.id;const storage=assignmentId?sessionStorage:localStorage;let cached=null;try{cached=JSON.parse(storage.getItem(key))}catch{}
  let version=detail?.work.version??0,locked=detail?.work.status==='submitted',dirty=false,busy=false,timer=null,changeNo=0,dead=false,conflict=false;
  const revision=locked&&detail?.assignment.startsAt&&Date.parse(detail.assignment.dueAt)>Date.now();
  if(revision)locked=false;
@@ -131,7 +146,10 @@ async function openDesktop(lab,epoch){
  destroy=()=>{if(typeof cleanup==='function')cleanup();else cleanup?.destroy?.()};
 }
 async function render(){const epoch=++routeEpoch;destroy?.();destroy=null;const [view='home',id,task,extra,term]=(location.hash.slice(1)||'home').split('/').map(decodeURIComponent);document.body.classList.toggle('desktop-home',['home','course'].includes(view));main.innerHTML='<p class="lead" role="status">جارٍ الفتح…</p>';document.querySelectorAll('.bar nav a').forEach(a=>a.setAttribute('aria-current',(a.hash==='#home'?['home','course','program','lab','practice']:['dashboard','assignment','results']).includes(view)?'page':'false'));const nav=document.querySelector('.bar nav');nav.innerHTML=user?.role==='teacher'?'<a href="#dashboard">فصولي</a><a href="#programs">المعامل</a>':'<a href="#home">المعامل</a><a href="#dashboard">الواجبات</a>';
-try{if((view==='home'||view==='course')&&user?.role==='teacher')await dashboard(epoch);
+try{if(!user){
+ main.innerHTML='<section class="box"><h1>معامل</h1><div class="actions">'+button('دخول الطالب برمز الفصل','student')+button('دخول المعلم','teacher','outline')+'</div></section>';
+ connect('student',auth);connect('teacher',()=>teacherAuth());return;
+}if((view==='home'||view==='course')&&user?.role==='teacher')await dashboard(epoch);
 else if(view==='home'||view==='course'||view==='programs'){
  const allowed=user?(await api('programs')).programs:desktopPrograms(catalog);
  if(epoch===routeEpoch)showLibrary(main,catalog,allowed);

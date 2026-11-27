@@ -97,15 +97,10 @@ export async function adminApi({user,db,method,path,url,input,one,list,query,aud
   return json({subscriptions:rows.slice(0,50),hasMore:rows.length>50});
  }
  if(area==='subscriptions' && !key && method==='POST'){
-  const b=await input(), isPersonal=b.plan==='teacher';
-  if(!['teacher','school','institution'].includes(b.plan)||!['trial','active','expired'].includes(b.status)||!cap(b.classLimit))
-   fail(400,'راجع الباقة والحالة وحد الاستخدام.');
-  const target=isPersonal?b.ownerId:b.schoolId;
-  if(!uuid(target) || (isPersonal?b.schoolId:b.ownerId))fail(400,'حدد مالكًا واحدًا مناسبًا للباقة.');
-  const targetExists=isPersonal?await one("SELECT 1 FROM users WHERE id=? AND role='teacher'",target):await one('SELECT 1 FROM schools WHERE id=?',target);
-  if(!targetExists)return missing();
+  const b=await input(),target=b.ownerId,column='ownerId';
+  if(b.plan!=='teacher'||!['active','expired'].includes(b.status)||!cap(b.classLimit)||!uuid(target)||b.schoolId)fail(400,'اختر اشتراك معلم صالحًا.');
+  if(!await one("SELECT 1 FROM users WHERE id=? AND role='teacher'",target))return missing();
   const validUntil=iso(b.validUntil),planId=id();
-  const column=isPersonal?'ownerId':'schoolId';
   await db.batch([query(`INSERT INTO subscriptions(id,${column},plan,status,validUntil,classLimit) VALUES(?,?,?,?,?,?)
     ON CONFLICT(${column}) WHERE ${column} IS NOT NULL DO UPDATE SET plan=excluded.plan,status=excluded.status,validUntil=excluded.validUntil,classLimit=excluded.classLimit`,
     planId,target,b.plan,b.status,validUntil,b.classLimit),audit(user.id,'subscription.configure',target)]);

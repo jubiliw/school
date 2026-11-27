@@ -19,8 +19,12 @@ function fixture(){
   return {data,status:response.status,cookie:response.headers.get('set-cookie')?.split(';')[0],headers:response.headers};
  }
  async function newUser(username,role){
-  const r=await request('register','POST',{username,name:username,role,password:'passphrase-test'});
+  const r=await request('register','POST',{username,name:username,role:'teacher',password:'passphrase-test'});
   assert.equal(r.status,201,JSON.stringify(r.data));
+  if(role==='student'){
+   db.prepare("UPDATE users SET role='student' WHERE id=?").run(r.data.user.id);
+   db.prepare('DELETE FROM subscriptions WHERE ownerId=?').run(r.data.user.id);
+  }else db.prepare("UPDATE subscriptions SET status='active' WHERE ownerId=?").run(r.data.user.id);
   return {session:r.cookie,id:r.data.user.id};
  }
  return {db,env,api,request,newUser};
@@ -57,7 +61,7 @@ test('teacher and pupil journey, draft reopening, grading/version history, CSV a
  const result=await request(path+'/results','GET',undefined,teacher.session); assert.deepEqual([result.data.results[0].score,result.data.results[0].attempts],[100,2]);
  const attemptDetails=await request(path+'/attempts?studentId='+pupil.id,'GET',undefined,teacher.session);
  assert.deepEqual(attemptDetails.data.attempts.map(a=>a.state),[complete,unfinished]);
- const download=await request(path+'/export','GET',undefined,teacher.session); assert.match(download.data,/100/); assert.match(download.headers.get('content-type'),/text\/csv/);
+ const download=await request(path+'/export','GET',undefined,teacher.session); assert.match(download.data,/بانتظار درجة المعلم/);assert.doesNotMatch(download.data,/100/); assert.match(download.headers.get('content-type'),/text\/csv/);
  assert.equal(db.prepare("SELECT count(*) AS n FROM audit WHERE action='assignment.submit'").get().n,2);
 });
 
@@ -122,11 +126,10 @@ test('operator provisioning, school isolation, pooled limits, account suspension
  assert.equal((await request('admin/usage','GET',undefined,t.session)).status,403);
  const {data:{school},status}=await op('schools','POST',{name:'مدرسة الاختبار',retentionDays:1});assert.equal(status,201);
  for(const teacher of [t,t2])assert.equal((await op('schools/'+school.id+'/teachers','POST',{teacherId:teacher.id})).status,200);
- const plan=await op('subscriptions','POST',{plan:'school',schoolId:school.id,classLimit:1,status:'active'});assert.equal(plan.status,200);
- assert.equal((await op('subscriptions','POST',{plan:'school',schoolId:school.id,classLimit:1,status:'active'})).data.subscription.id,plan.data.subscription.id);
+ assert.equal((await op('subscriptions','POST',{plan:'school',schoolId:school.id,classLimit:1,status:'active'})).status,400);
  assert.equal((await op('schools/'+school.id,'DELETE',{confirmName:school.name})).status,409);
  const c=await request('classes','POST',{name:'ف'},t.session);assert.equal(c.status,201);
- assert.equal((await request('classes','POST',{name:'ف٢'},t2.session)).status,403);
+ assert.equal((await request('classes','POST',{name:'ف٢'},t2.session)).status,201);
  await request('join','POST',{code:c.data.code},s.session); await request('classes/'+c.data.id+'/approve','POST',{students:[s.id]},t.session);
  const a=await request('assignments','POST',{title:'عمل',classId:c.data.id,lab:'files'},t.session);
  const p='assignments/'+a.data.id;
@@ -143,8 +146,6 @@ test('operator provisioning, school isolation, pooled limits, account suspension
  assert.equal((await request('login','POST',{username:'student',password:'passphrase-test'})).status,200);
  assert.equal((await op('schools/'+school.id,'PATCH',{name:'مدرسة محدثة',retentionDays:null})).data.school.retentionDays,null);
  for(const teacher of [t,t2])assert.equal((await op('schools/'+school.id+'/teachers/'+teacher.id,'DELETE',{})).status,200);
- const planId=plan.data.subscription.id;
- assert.equal((await op('subscriptions/'+planId,'DELETE',{confirmId:planId})).status,200);
  assert.equal((await op('schools/'+school.id,'DELETE',{confirmName:'مدرسة محدثة'})).status,200);
  assert.ok((await op('audit','GET')).data.events.find(x=>x.action==='school.delete'));
 });
