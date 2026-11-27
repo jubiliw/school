@@ -7,6 +7,7 @@ export default {
   if(!['GET','HEAD'].includes(request.method))return new Response(null,{status:405});
   const route=url.pathname==='/index.html'?'/':url.pathname;
   if(!Object.hasOwn(assets,route))return new Response(null,{status:404});
+  if(route==='/ui/workstation.webp'||route==='/ui/kufi-headings.woff')return new Response(request.method==='HEAD'?null:Uint8Array.from(atob(assets[route]),letter=>letter.charCodeAt(0)),{headers:{'Content-Type':route.endsWith('.webp')?'image/webp':'font/woff','Cache-Control':'public, max-age=3600','X-Content-Type-Options':'nosniff'}});
   const type=route.endsWith('.mjs')?'application/javascript':route.endsWith('.css')?'text/css':route.endsWith('.json')?'application/json':route.endsWith('.svg')?'image/svg+xml':'text/html';
   return new Response(request.method==='HEAD'?null:assets[route],{headers:{
    'Content-Type':type+'; charset=utf-8','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin',

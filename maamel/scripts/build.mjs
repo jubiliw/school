@@ -6,6 +6,9 @@ import {labs} from '../registry.mjs';
 const read=p=>fs.readFileSync(p,'utf8');
 const assets={};
 function add(file,route='/'+file){assets[route]=read(file)}
+assets['/ui/kufi-headings.woff']=fs.readFileSync('ui/kufi-headings.woff').toString('base64');
+add('vendor/noto/LICENSE');
+assets['/ui/workstation.webp']=fs.readFileSync('ui/workstation.webp').toString('base64');
 add('index.html','/');add('backend/admin-ui.mjs','/admin-ui.mjs');
 for(const dir of ['ui','studio','office-common',...Object.keys(labs)])for(const file of fs.readdirSync(dir)){
  if(/\.(mjs|css|svg)$/.test(file)&&!file.includes('.test.'))add(dir+'/'+file)

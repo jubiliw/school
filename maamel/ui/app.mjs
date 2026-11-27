@@ -22,7 +22,7 @@ function auth(){
  },'<div class="tabs">'+button('دخول المعلم','teacher','outline')+'</div>');
  dialogBody.querySelector('[data-act=teacher]').onclick=()=>teacherAuth();
 }
-account.onclick=()=>{if(!user)return auth();modal('حساب '+escape(user.name),'<div class="stack">'+button('فتح لوحة الفصل','dash')+button('تسجيل الخروج','logout','outline')+'</div>');dialogBody.querySelector('[data-act=dash]').onclick=()=>{dialog.close();location.hash='dashboard'};dialogBody.querySelector('[data-act=logout]').onclick=async()=>{try{await api('logout','POST',{});user=null;account.textContent='دخول الحساب';dialog.close();for(const key of Object.keys(sessionStorage))if(key.startsWith('maamel-work:'))sessionStorage.removeItem(key);location.hash='home';await render()}catch(e){notify(e.message)}}};
+account.onclick=()=>{if(!user)return teacherAuth();modal('حساب '+escape(user.name),'<div class="stack">'+button('فتح لوحة الفصل','dash')+button('تسجيل الخروج','logout','outline')+'</div>');dialogBody.querySelector('[data-act=dash]').onclick=()=>{dialog.close();location.hash='dashboard'};dialogBody.querySelector('[data-act=logout]').onclick=async()=>{try{await api('logout','POST',{});user=null;account.textContent='دخول الحساب';dialog.close();for(const key of Object.keys(sessionStorage))if(key.startsWith('maamel-work:'))sessionStorage.removeItem(key);location.hash='home';await render()}catch(e){notify(e.message)}}};
 function connect(action,handler){const el=main.querySelector('[data-act="'+action+'"]');if(el)el.onclick=handler}
 function lessonTask(lab,id){return catalog.find(l=>l.id===lab)?.tasks.find(t=>t.id===id)}
 function labelState(s){return ({submitted:'تم التسليم',pending:'لم يبدأ',draft:'مسودة',reopened:'أعيد فتحه'})[s]||''}
@@ -30,7 +30,7 @@ async function dashboard(epoch){if(!user){main.innerHTML='<div class="box"><h1>�
 if(user.role==='admin'){const admin=await import('/admin-ui.mjs');if(epoch===routeEpoch){main.replaceChildren();await admin.mount(main,(url,method,body)=>api(url.replace(/^\/api\//,''),method,body))}return}
 if(user.role==='teacher'){
  const {classes}=await api('classes');if(epoch!==routeEpoch)return;
- main.innerHTML='<div class="heading"><h1>فصولي</h1>'+button('إنشاء فصل','class')+'</div><section class="box">'+(classes.map(c=>'<div class="listrow"><a href="#class/'+encodeURIComponent(c.id)+'"><strong>'+escape(c.name)+'</strong></a><span>رمز الفصل <b dir="ltr">'+escape(c.code)+'</b></span></div>').join('')||'<p>أنشئ فصلك الأول لدعوة الطلاب برمز الفصل.</p>')+'</section>';
+ main.innerHTML='<section class="class-banner"><div><h1>فصولي</h1><p>إدارة فصولك وواجبات طلابك من مكان واحد.</p></div>'+button('إنشاء فصل','class')+'</section><div class="class-grid">'+(classes.map(c=>'<a class="class-card" href="#class/'+encodeURIComponent(c.id)+'"><span class="class-symbol" aria-hidden="true">▤</span><h2>'+escape(c.name)+'</h2><span>رمز الفصل <b dir="ltr">'+escape(c.code)+'</b></span></a>').join('')||'<section class="empty-class"><h2>أنشئ فصلك الأول</h2><p>بعد إنشاء الفصل يظهر رمز تشاركه مع طلابك.</p></section>')+'</div>';
  connect('class',()=>form('إنشاء فصل',field('اسم الفصل','name'),'إنشاء',async data=>{const c=await api('classes','POST',data);location.hash='class/'+c.id}));return;
 }
 if(user.device){
@@ -147,11 +147,17 @@ async function openDesktop(lab,epoch){
 }
 async function render(){const epoch=++routeEpoch;destroy?.();destroy=null;const [view='home',id,task,extra,term]=(location.hash.slice(1)||'home').split('/').map(decodeURIComponent);document.body.classList.toggle('desktop-home',['home','course'].includes(view));main.innerHTML='<p class="lead" role="status">جارٍ الفتح…</p>';document.querySelectorAll('.bar nav a').forEach(a=>a.setAttribute('aria-current',(a.hash==='#home'?['home','course','program','lab','practice']:['dashboard','assignment','results']).includes(view)?'page':'false'));const nav=document.querySelector('.bar nav');nav.innerHTML=user?.role==='teacher'?'<a href="#dashboard">فصولي</a><a href="#programs">المعامل</a>':'<a href="#home">المعامل</a><a href="#dashboard">الواجبات</a>';
 try{if(!user){
- main.innerHTML='<section class="box"><h1>معامل</h1><div class="actions">'+button('دخول الطالب برمز الفصل','student')+button('دخول المعلم','teacher','outline')+'</div></section>';
- connect('student',auth);connect('teacher',()=>teacherAuth());return;
+ nav.innerHTML='<a href="#home">الرئيسية</a><button class="nav-link" type="button">المعامل</button>';
+ nav.querySelector('button').onclick=()=>main.querySelector('#program-list')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+ account.textContent='دخول المعلم';
+ showLibrary(main,catalog,desktopPrograms(catalog),async(code,target)=>{
+  const session=await api('enter-class','POST',{code});user=session.user;account.textContent=user.name;
+  const next=target||(view==='lab'?location.hash:'#home');
+  if(location.hash===next)await render();else location.hash=next;
+ });return;
 }if((view==='home'||view==='course')&&user?.role==='teacher')await dashboard(epoch);
 else if(view==='home'||view==='course'||view==='programs'){
  const allowed=user?(await api('programs')).programs:desktopPrograms(catalog);
- if(epoch===routeEpoch)showLibrary(main,catalog,allowed);
+ if(epoch===routeEpoch)showLibrary(main,catalog,allowed,null,user.role==='teacher');
 }else if(view==='class')await classroom(id,epoch);else if(view==='program')showProgram(main,catalog,extra,id,task);else if(view==='lab')await openDesktop(id,epoch);else if(view==='practice')await workspace(id,task,null,epoch,extra,term);else if(view==='dashboard')await dashboard(epoch);else if(['assignment','results'].includes(view)){if(!user)return dashboard(epoch);if(view==='results')await results(id,epoch);else await workspace(null,null,id,epoch)}else showLibrary(main,catalog)}catch(e){if(epoch===routeEpoch){main.innerHTML='<section class="box"><p role="alert">'+escape(e.message)+'</p>'+button('إعادة المحاولة','retry','outline')+' <a href="#home">المختبرات</a></section>';connect('retry',render)}}window.scrollTo(0,0)}
 try{const [data,session]=await Promise.all([fetch('/catalog.json').then(r=>r.json()),api('me').catch(()=>({user:null}))]);catalog=data;user=session.user;account.textContent=user?.name||'دخول الحساب';window.addEventListener('hashchange',render);await render()}catch{main.textContent='تعذر تحميل قائمة المختبرات. أعد تحميل الصفحة.'}
