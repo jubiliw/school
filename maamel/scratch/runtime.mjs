@@ -10,6 +10,7 @@ export function run(state, kind) {
   const robot=kind==='robot', blocks=state?.blocks;
   const origin={x:number(state?.x,0,-220,220),y:number(state?.y,0,-160,160),angle:0};
   let {x,y,angle}=origin, down=robot, color=60, width=2, time=0, visits=0;
+  let costume=state?.costume;
   let trace=[], frames=[], segments=[], stamps=[];
   if(!Array.isArray(blocks) || blocks.length>160) return {valid:false,trace,frames,segments,stamps,origin};
   const valid=robot || blocks[0]?.op==='flag';
@@ -34,6 +35,7 @@ export function run(state, kind) {
       trace.push(e);
       switch(b.op){
       case 'flag': break;
+      case 'costume':costume=b.costume;e.costume=costume;break;
       case 'move':move(n);break;
       case 'cw':case 'ccw':move(0,(b.op==='cw'?1:-1)*n);break;
       case 'say':e.text=String(b.text??'').slice(0,180);time+=1000*number(b.seconds,2,.1,60);break;
@@ -47,7 +49,7 @@ export function run(state, kind) {
       case 'colorBy':color=((color+n)%100+100)%100;break;
       case 'size':width=number(b.n,1,1,80);break;
       case 'sizeBy':width=clamp(width+n,1,80);break;
-      case 'stamp':stamps.push({x,y,angle,time});break;
+      case 'stamp':stamps.push({x,y,angle,time,costume});break;
       case 'drive':case 'steer':{
         const distance=number(b.distance,20,0,350);
         const left=number(b.op==='drive'?b.speed:b.left,30,0,100);

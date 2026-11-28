@@ -2,7 +2,7 @@ import {sceneControls,sensors,validObjects} from '../robot/scene.mjs';
 import {run} from './runtime.mjs';
 import {chromeStyle} from './chrome-style.mjs';
 import {backdropLibrary,costumePane,menu,modal,soundPane} from './chrome.mjs';
-import {newBlock,scenes,scratchTools,robotTools} from './tools.mjs';
+import {newBlock,poses,scenes,scratchTools,robotTools} from './tools.mjs';
 import {renderStage,playSound} from './stage.mjs';
 const colors={'الأحداث':'#aa6414','الحركة':'#28689b','الهيئة':'#69488e','الصوت':'#964781','التحكم':'#9b5322','القلم':'#1c7065','الحدث':'#a15329'};
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;return n;};
@@ -61,6 +61,21 @@ export function mountEditor(host,previous,onChange,kind,initial){
  const fields=el('div');fields.className='stage-fields';const sceneSelect=select(scenes[kind],state.scene,value=>{state.scene=value;changed();});fields.append(label('الخلفية',sceneSelect));
  const positions={};for(const [key,max,t] of [['x',220,'س'],['y',160,'ص']]){const input=el('input');positions[key]=input;input.type='number';input.min=-max;input.max=max;input.step='1';input.value=key==='y'?-state[key]:state[key];input.onchange=()=>{let v=Math.max(-max,Math.min(max,Number(input.value)||0));state[key]=key==='y'?-v:v;changed();};fields.append(label(t,input));}
  if(!robot)fields.append(button('اختيار خلفية',()=>backdropLibrary(root,state.scene,value=>{state.scene=value;sceneSelect.value=value;changed();})));
+ const actors=el('div');if(!robot)fields.append(actors);
+ const actorKeys=['costume','x','y','blocks','clips'];
+ function snapshotActor(){return Object.fromEntries(actorKeys.filter(k=>state[k]!==undefined).map(k=>[k,state[k]]));}
+ function editActor(actor){for(const key of actorKeys)delete state[key];Object.assign(state,actor);target=state.blocks;changed();refresh();}
+ function actorControls(){
+  if(robot)return;actors.replaceChildren();const others=state.others??[];
+  const nameOf=a=>poses.find(([id])=>id===(a.costume??'orange'))?.[1]??'كائن';
+  const list=select([[0,nameOf(state)],...others.map((a,i)=>[i+1,nameOf(a)])],0,value=>{
+   if(+value===0)return;const i=Number(value)-1,next=others[i];others[i]=snapshotActor();editActor(next);
+  });
+  const library=select(poses,'fish',()=>{});
+  const add=button('أضف كائنًا',()=>{if(others.length>=11)return;state.others=[...others,snapshotActor()];editActor({costume:library.value,x:Math.min(180,30*(others.length+1)),y:0,blocks:[]});});add.disabled=others.length>=11;
+  const remove=button('احذف الكائن',()=>{if(others.length){const next=others.shift();editActor(next);}});remove.disabled=!others.length;
+  actors.append(label('الكائن النشط',list),label('مكتبة الكائنات',library),add,remove);
+ }
  view.append(fields,status);
  const sceneEditor=robot?sceneControls(view,()=>state,changed):null;
  const sensorLine=el('small');if(robot)view.append(sensorLine);
@@ -93,17 +108,19 @@ export function mountEditor(host,previous,onChange,kind,initial){
  function stop(){cancelAnimationFrame(frame);frame=0;status.textContent='متوقف';}
  function redraw(){bubble.textContent=renderStage(canvas,state,kind,result,clock,showSensors);}
  function reset(){stop();result=null;clock=0;status.textContent='جاهز للتشغيل';positions.x.value=state.x;positions.y.value=-state.y;redraw();}
- function play(){stop();result=run(state,kind);clock=0;if(!state.blocks.length||!result.valid){status.textContent=result.error?'تعذر تنفيذ المقطع؛ راجع عدد التكرارات واللبنات.':robot?'أضف لبنة حركة أولًا.':'ضع لبنة العلم في بداية المقطع.';redraw();return;}
+ function play(){stop();result=run(state,kind);clock=0;const runs=[result];if(!robot){result.others=(state.others??[]).map(s=>run(s,kind));runs.push(...result.others);}
+  const duration=Math.max(0,...runs.filter(r=>r.valid).map(r=>r.time));
+  if(!runs.some(r=>r.valid&&r.trace.length)){status.textContent=result.error?'تعذر تنفيذ المقطع؛ راجع عدد التكرارات واللبنات.':robot?'أضف لبنة حركة أولًا.':'ضع لبنة العلم في بداية المقطع.';redraw();return;}
   const C=globalThis.AudioContext||globalThis.webkitAudioContext;if(C){try{audio??=new C();audio.resume().catch(()=>{});}catch{}}
-  const sounds=result.trace.filter(e=>e.op==='sound');let ix=0;const started=performance.now();status.textContent='قيد التنفيذ';
-  function tick(now){if(!root.isConnected){stop();audio?.close().catch(()=>{});return;}clock=Math.min(result.time,now-started);while(ix<sounds.length&&sounds[ix].start<=clock){playSound(audio,sounds[ix++].sound);}
-  redraw();if(clock<result.time)frame=requestAnimationFrame(tick);else{frame=0;status.textContent='اكتمل التنفيذ';}}
+  const sounds=runs.filter(r=>r.valid).flatMap(r=>r.trace.filter(e=>e.op==='sound')).sort((a,b)=>a.start-b.start);let ix=0;const started=performance.now();status.textContent='قيد التنفيذ';
+  function tick(now){if(!root.isConnected){stop();audio?.close().catch(()=>{});return;}clock=Math.min(duration,now-started);while(ix<sounds.length&&sounds[ix].start<=clock){playSound(audio,sounds[ix++].sound);}
+  redraw();if(clock<duration)frame=requestAnimationFrame(tick);else{frame=0;status.textContent='اكتمل التنفيذ';}}
   tick(started);
  }
  function add(op,list=target,at){const def=byOp.get(op);if(!def)return;if(total(state.blocks)>=160){status.textContent='بلغ المقطع الحد الأقصى للبنات.';return;}const block=newBlock(def);if(op==='sound')block.sound=(state.clips??['cat'])[0]??'cat';list.splice(at??list.length,0,block);changed();refresh();}
  function total(items){return items.reduce((sum,b)=>sum+1+(Array.isArray(b.body)?total(b.body):0),0);}
  function isProject(p){function valid(list,depth){return depth<=5&&Array.isArray(list)&&list.length<=160&&list.every(b=>b&&byOp.has(b.op)&&(b.op!=='repeat'||valid(b.body,depth+1))&&byOp.get(b.op).slice(3).every(f=>f.type==='text'?typeof b[f.key]==='string'&&b[f.key].length<=180:f.type==='select'?f.options.some(([k])=>k===b[f.key]):Number.isFinite(b[f.key])&&b[f.key]>=f.min&&b[f.key]<=f.max));}
- return p&&(!robot||validObjects(p.objects))&&(p.clips===undefined||Array.isArray(p.clips)&&p.clips.length<=4&&p.clips.every(v=>['bird','bounce','cat','door'].includes(v)))&&(p.costume===undefined||['orange','slate','sand'].includes(p.costume))&&typeof p.title==='string'&&p.title.length<=80&&Number.isFinite(p.x)&&Math.abs(p.x)<=220&&Number.isFinite(p.y)&&Math.abs(p.y)<=160&&scenes[kind].some(([k])=>k===p.scene)&&valid(p.blocks,0)&&total(p.blocks)<=160;}
+ return p&&(p.others===undefined||!robot&&Array.isArray(p.others)&&p.others.length<=11&&p.others.every(a=>a&&a.others===undefined&&isProject({...a,scene:p.scene,title:p.title})))&&(!robot||validObjects(p.objects))&&(p.clips===undefined||Array.isArray(p.clips)&&p.clips.length<=4&&p.clips.every(v=>['bird','bounce','cat','door'].includes(v)))&&(p.costume===undefined||poses.some(([id])=>id===p.costume))&&typeof p.title==='string'&&p.title.length<=80&&Number.isFinite(p.x)&&Math.abs(p.x)<=220&&Number.isFinite(p.y)&&Math.abs(p.y)<=160&&scenes[kind].some(([k])=>k===p.scene)&&valid(p.blocks,0)&&total(p.blocks)<=160;}
  function drop(list,container,at){container.ondragover=e=>{e.preventDefault();e.stopPropagation();};container.ondrop=e=>{e.preventDefault();e.stopPropagation();const op=e.dataTransfer.getData('application/x-maamel-op');
  if(dragged&&e.dataTransfer.getData('application/x-maamel-move')){
   const {list:old,block}=dragged;dragged=null;const inside=b=>b?.body===list||b?.body?.some(inside);
@@ -111,7 +128,7 @@ export function mountEditor(host,previous,onChange,kind,initial){
   const position=old.indexOf(block);if(position<0)return;let dest=at??list.length;
   if(old===list&&position<dest)dest--;old.splice(position,1);list.splice(dest,0,block);if(!isProject(state)){list.splice(dest,1);old.splice(position,0,block);return;}changed();refresh();
  }else if(byOp.has(op))add(op,list,at);};}
- function refresh(){refreshChrome();groups.replaceChildren();palette.replaceChildren();for(const g of new Set(defs.map(d=>d[1]))){if(g==='القلم'&&!hasPen())continue;const b=button(g,()=>{group=g;refresh();});b.style.setProperty('--category',colors[g]);b.setAttribute('aria-pressed',String(group===g));if(group===g)b.className='active';groups.append(b);}
+ function refresh(){actorControls();refreshChrome();groups.replaceChildren();palette.replaceChildren();for(const g of new Set(defs.map(d=>d[1]))){if(g==='القلم'&&!hasPen())continue;const b=button(g,()=>{group=g;refresh();});b.style.setProperty('--category',colors[g]);b.setAttribute('aria-pressed',String(group===g));if(group===g)b.className='active';groups.append(b);}
   if(!robot&&!hasPen()){const b=button('إضافة ملحق',()=>{const dialog=modal(root,'ملحقات سكراتش');dialog.append(button('إضافة القلم',()=>{dialog.close();state.pen=true;group='القلم';changed();refresh();}));});groups.append(b);}
   for(const d of defs.filter(d=>d[1]===group)){const b=button(d[2],()=>add(d[0]));b.className='tile';b.style.setProperty('--ink',colors[d[1]]);b.draggable=true;b.ondragstart=e=>e.dataTransfer.setData('application/x-maamel-op',d[0]);palette.append(b);}
   tree.replaceChildren();renderList(state.blocks,tree,0);targetLabel.textContent=target===state.blocks?'الإضافة إلى المقطع الرئيسي':'الإضافة داخل التكرار المحدد';drop(state.blocks,workspace);

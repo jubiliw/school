@@ -77,6 +77,13 @@
       "lesson": "كيفية تصميم برنامج",
       "start": 162,
       "end": 169
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "الكائنات في سكراتش",
+      "start": 170,
+      "end": 181
     }
   ],
   "activities": [
@@ -189,6 +196,16 @@
       "program": "scratch",
       "task": "red-triangle-center",
       "page": 169
+    },
+    {
+      "program": "scratch",
+      "task": "feeding-hen",
+      "page": 180
+    },
+    {
+      "program": "scratch",
+      "task": "aquarium",
+      "page": 181
     }
   ]
 }

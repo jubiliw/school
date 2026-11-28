@@ -1,5 +1,5 @@
 import {paintBackdrop,paintSprite} from './stage.mjs';
-import {scenes,sounds} from './tools.mjs';
+import {scenes,sounds,poses} from './tools.mjs';
 const make=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function action(name,fn){const b=make('button',name);b.type='button';b.onclick=fn;return b;}
 export function menu(root,title,entries){
@@ -15,7 +15,7 @@ export function backdropLibrary(root,active,choose){
  for(const [id,title] of scenes.scratch){const b=action(title,()=>{choose(id);dialog.close();});b.setAttribute('aria-pressed',String(id===active));const canvas=make('canvas');canvas.width=160;canvas.height=120;const c=canvas.getContext('2d');if(c){c.scale(1/3,1/3);c.translate(240,180);paintBackdrop(c,'scratch',id);}b.prepend(canvas);list.append(b);}
  dialog.append(list);
 }
-export const costumes=[['orange','برتقالي','#e69256'],['slate','رمادي','#82939b'],['sand','رملي','#dabe87']];
+export const costumes=poses;
 export function costumePane(section,state,update){
  const title=make('h3','مظاهر الكائن');section.append(title);const gallery=make('div');gallery.className='block-library-grid';
  for(const [id,name] of costumes){const b=action(name,()=>update(id));b.setAttribute('aria-pressed',String((state.costume??'orange')===id));const cv=make('canvas');cv.width=150;cv.height=90;const c=cv.getContext('2d');if(c)paintSprite(c,'scratch',80,50,0,2,id);b.prepend(cv);gallery.append(b);}

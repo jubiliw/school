@@ -1,5 +1,7 @@
 import {run,assess,near,polygon} from './runtime.mjs';
 export const tasks=[
+ ['aquarium','رسوم متحركة تحت الماء',181,'اختر قاع البحر وأضف سمكة المهرج وقنديل البحر والسمكة المنتفخة. أنشئ لكل منها مقطع حركة مختلفًا يبدأ بالعلم.'],
+ ['feeding-hen','الدجاجة تأكل',180,'اختر خلفية المزرعة. عند نقر العلم كرر عشر مرات التبديل بين مظهري الدجاجة hen-c وhen-d وانتظر ٠٫٣ ثانية بعد كل مظهر.'],
  ['red-triangle-center','القطة داخل المثلث الأحمر',169,'ارسم بالقلم مثلثًا أحمر كبيرًا. ارفع القلم وحرك القطة داخل المثلث وشغّل صوتًا وهي بداخله.'],
  ['space','مشهد الفضاء',128,'اختر خلفية الفضاء، وضع القطة في المنتصف وسم المشروع «الفضاء».'],
  ['football','كرة القدم',128,'اختر ملعب كرة القدم، واسحب القطة إلى اليسار وسمّ المشروع «كرة القدم».'],
@@ -23,6 +25,15 @@ export const initial=()=>({v:1,title:'مشروع جديد',x:0,y:0,scene:'plain'
 const norm=t=>String(t??'').replace(/[أإآ]/g,'ا').replace(/[ً-ْـ!؟.]/g,'').trim();
 export function grade(s,id){
  const result=run(s,'scratch'), a=result.trace;
+ if(id==='aquarium'){
+  const actors=[s,...(Array.isArray(s?.others)?s.others.slice(0,11):[])],paths=new Set(),checks=[['خلفية قاع البحر',s?.scene==='sea']];
+  for(const [key,name] of [['fish','سمكة المهرج'],['jelly','قنديل البحر'],['puffer','السمكة المنتفخة']]){
+   const actor=actors.find(x=>x?.costume===key),r=run(actor,'scratch');
+   const frames=r.valid?r.frames.map(f=>[Math.round(f.x-r.origin.x),Math.round(f.y-r.origin.y),f.angle,f.time]):[];
+   const moved=frames.some(([x,y])=>x||y);checks.push(['مقطع يحرك '+name,moved]);if(moved)paths.add(JSON.stringify(frames));
+  }
+  return assess([...checks,['حركة مختلفة لكل كائن',paths.size===3]]);
+ }
  if(!result.valid&&!['space','football'].includes(id))return {score:0,feedback:result.error?'تجاوز المقطع حدود التشغيل أو يحتوي لبنة غير صالحة.':'ضع لبنة العلم في بداية المقطع.'};
  const moves=a.filter(e=>e.op==='move'),loops=a.filter(e=>e.op==='repeat'), lines=result.segments, speech=a.filter(e=>e.op==='say');
  const move=d=>moves.find(e=>e.n===d), say=t=>speech.find(e=>norm(e.text)===norm(t)), named=t=>norm(s?.title)===norm(t);
@@ -32,6 +43,11 @@ export function grade(s,id){
  const sound=a.find(e=>e.op==='sound');
  let checks=[];
  switch(id){
+ case 'feeding-hen':{
+  const changes=a.filter(e=>e.op==='costume'), waits=a.filter(e=>e.op==='wait');
+  const poses=changes.length===20&&changes.every((e,i)=>e.costume===(i%2?'hen-d':'hen-c'));
+  checks=[['خلفية المزرعة',s.scene==='farm'],['تكرار الحركة عشر مرات',loops.some(e=>e.n===10)&&poses],['ظهور الدجاجة بمظهريها',changes.some(e=>e.costume==='hen-c')&&changes.some(e=>e.costume==='hen-d')],['انتظار ٠٫٣ ثانية بين المظاهر',poses&&waits.length===20&&changes.every((e,i)=>waits[i].start===e.start&&near(waits[i].n,.3)&&(i===19||near(changes[i+1].start-e.start,300)))]];break;
+ }
  case 'red-triangle-center':{
   const cross=(a,b,p)=>(b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);
   const vertices=lines.map(l=>l.from);
