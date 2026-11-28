@@ -6,14 +6,14 @@ export function assess(checks) {
   const remaining=checks.filter(([,pass])=>!pass).map(([label])=>label);
   return {score:Math.round(100*(checks.length-remaining.length)/checks.length),feedback:remaining.length?'تبقّى: '+remaining.join('، '):'اكتملت معايير النشاط.'};
 }
-export function run(state, kind) {
+export function run(state, kind, answers=[],event='flag') {
   const robot=kind==='robot', blocks=state?.blocks;
   const origin={x:number(state?.x,0,-220,220),y:number(state?.y,0,-160,160),angle:0};
   let {x,y,angle}=origin, down=robot, color=60, width=2, time=0, visits=0;
-  let costume=state?.costume;
+  let costume=state?.costume,answer='',answerIndex=0,pending=null;
   let trace=[], frames=[], segments=[], stamps=[];
   if(!Array.isArray(blocks) || blocks.length>160) return {valid:false,trace,frames,segments,stamps,origin};
-  const valid=robot || blocks[0]?.op==='flag';
+  const valid=robot || blocks[0]?.op===event&&['flag','clicked'].includes(event);
   const move=(length, delta=0,duration=160)=>{
     const start={x,y,angle}; const slice=rad(delta);
     if(Math.abs(slice)<1e-8){x+=length*Math.cos(rad(angle));y+=length*Math.sin(rad(angle));}
@@ -34,7 +34,18 @@ export function run(state, kind) {
       const e={op:b.op,start:time,x,y,angle,n};
       trace.push(e);
       switch(b.op){
-      case 'flag': break;
+      case 'flag':case 'clicked': break;
+      case 'ask':
+        e.text=String(b.text??'').slice(0,180);
+        if(answerIndex>=answers.length){pending={text:e.text,time,index:answerIndex};throw pending;}
+        answer=String(answers[answerIndex++]).slice(0,180);break;
+      case 'reply':e.op='say';e.text=String(b.prefix??'')+answer+String(b.suffix??'');time+=1000*number(b.seconds,2,.1,60);break;
+      case 'ifAnswer':{
+        const digits=answer.trim().replace(/[٠-٩]/g,d=>String(d.charCodeAt(0)-1632)).replace('٫','.');
+        const a=digits===''?NaN:Number(digits),v=Number(b.value);
+        if(Number.isFinite(a)&&Number.isFinite(v)&&(b.comparison==='lt'?a<v:b.comparison==='eq'?a===v:b.comparison==='gt'&&a>v))execute(b.body,depth+1);
+        break;
+      }
       case 'costume':costume=b.costume;e.costume=costume;break;
       case 'move':move(n);break;
       case 'cw':case 'ccw':move(0,(b.op==='cw'?1:-1)*n);break;
@@ -69,8 +80,8 @@ export function run(state, kind) {
     }
   }
   let error=false;
-  if(valid)try{execute(blocks);}catch{error=true;}
-  return {valid:valid&&!error,trace,frames,segments,stamps,origin,x,y,angle,time,error};
+  if(valid)try{execute(blocks);}catch(err){error=err!==pending;}
+  return {valid:valid&&!error,trace,frames,segments,stamps,origin,x,y,angle,time,error,pending};
 }
 export const near=(a,b,tolerance=.001)=>Math.abs(a-b)<=tolerance;
 export function polygon(points,count) {

@@ -4,7 +4,7 @@ import {chromeStyle} from './chrome-style.mjs';
 import {backdropLibrary,costumePane,menu,modal,soundPane} from './chrome.mjs';
 import {newBlock,poses,scenes,scratchTools,robotTools} from './tools.mjs';
 import {renderStage,playSound} from './stage.mjs';
-const colors={'الأحداث':'#aa6414','الحركة':'#28689b','الهيئة':'#69488e','الصوت':'#964781','التحكم':'#9b5322','القلم':'#1c7065','الحدث':'#a15329'};
+const colors={'الاستشعار':'#177a92','الأحداث':'#aa6414','الحركة':'#28689b','الهيئة':'#69488e','الصوت':'#964781','التحكم':'#9b5322','القلم':'#1c7065','الحدث':'#a15329'};
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;return n;};
 const button=(text,fn)=>{const b=el('button',text);b.type='button';b.addEventListener('click',fn);return b;};
 const label=(text,field)=>{const l=el('label',text+' ');l.append(field);return l;};
@@ -80,8 +80,15 @@ export function mountEditor(host,previous,onChange,kind,initial){
  const sceneEditor=robot?sceneControls(view,()=>state,changed):null;
  const sensorLine=el('small');if(robot)view.append(sensorLine);
  function showSensors(pose){if(!robot||!showReadings)return;const reading=sensors(state.objects,pose);sensorLine.textContent='مسافة أمامية: '+(reading.range===null?'أبعد من ٢٠٠ سم':reading.range+' سم')+' · لمس: '+(reading.touch?'نعم':'لا')+' · دوران: '+reading.gyro+'° · لون السطح: '+reading.color;}
- canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);setPoint(e);});
- canvas.addEventListener('pointermove',e=>{if(canvas.hasPointerCapture(e.pointerId))setPoint(e);});
+ let press=null;
+ canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);press={x:e.clientX,y:e.clientY,drag:false};if(robot)setPoint(e);});
+ canvas.addEventListener('pointerup',e=>{
+  if(!robot&&press&&!press.drag){const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*480-240,y=(e.clientY-r.top)/r.height*360-180;
+   const actors=[state,...(state.others??[])],index=actors.findLastIndex(a=>Math.hypot(a.x-x,a.y-y)<24);
+   if(index>=0&&actors[index].blocks[0]?.op==='clicked')play(index);else setPoint(e);
+  }press=null;
+ });
+ canvas.addEventListener('pointermove',e=>{if(press&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>4)press.drag=true;if(press?.drag&&canvas.hasPointerCapture(e.pointerId))setPoint(e);});
  function setPoint(e){const r=canvas.getBoundingClientRect();const x=Math.max(-220,Math.min(220,Math.round((e.clientX-r.left)/r.width*480-240))),y=Math.max(-160,Math.min(160,Math.round((e.clientY-r.top)/r.height*360-180)));if(!sceneEditor?.place(x,y)){Object.assign(state,{x,y});changed();}}
  function persist(){const next=JSON.stringify(state);if(next!==last){history.push(last);if(history.length>40)history.shift();future.length=0;last=next;}onChange?.(structuredClone(state));}
  function load(project){state=structuredClone(project);target=state.blocks;name.value=state.title;sceneSelect.value=state.scene;sceneEditor?.sync();reset();refresh();}
@@ -103,23 +110,37 @@ export function mountEditor(host,previous,onChange,kind,initial){
   if(tab==='config'){studio.append(el('h3','EV3 · تهيئة الروبوت'));const ports=[['B','المحرك الأيسر'],['C','المحرك الأيمن'],['1','مستشعر اللمس'],['2','مستشعر الجيروسكوب'],['3','مستشعر اللون'],['4','مستشعر المسافة']];const table=el('table');for(const [id,t] of ports){const tr=el('tr');tr.append(el('th',id),el('td',t));table.append(tr);}studio.append(table);
    const checkbox=el('input');checkbox.type='checkbox';checkbox.checked=showReadings;checkbox.onchange=()=>{showReadings=checkbox.checked;sensorLine.hidden=!showReadings;redraw();};studio.append(label('عرض قراءات المستشعرات',checkbox));}
  }
- function containsSound(blocks,id){return blocks.some(b=>b.op==='sound'&&b.sound===id||b.op==='repeat'&&containsSound(b.body,id));}
+ function containsSound(blocks,id){return blocks.some(b=>b.op==='sound'&&b.sound===id||Array.isArray(b.body)&&containsSound(b.body,id));}
  function changed(){reset();persist();}
- function stop(){cancelAnimationFrame(frame);frame=0;status.textContent='متوقف';}
+ let promptForm=null;
+ function stop(){promptForm?.remove();promptForm=null;cancelAnimationFrame(frame);frame=0;status.textContent='متوقف';}
  function redraw(){bubble.textContent=renderStage(canvas,state,kind,result,clock,showSensors);}
  function reset(){stop();result=null;clock=0;status.textContent='جاهز للتشغيل';positions.x.value=state.x;positions.y.value=-state.y;redraw();}
- function play(){stop();result=run(state,kind);clock=0;const runs=[result];if(!robot){result.others=(state.others??[]).map(s=>run(s,kind));runs.push(...result.others);}
-  const duration=Math.max(0,...runs.filter(r=>r.valid).map(r=>r.time));
+ function play(click){stop();clock=0;
+  const actors=robot?[state]:[state,...(state.others??[])],answers=actors.map(()=>[]);
+  let runs,duration,sounds;
+  function simulate(){
+   runs=actors.map((actor,i)=>run(actor,kind,answers[i],Number.isInteger(click)?(i===click?'clicked':'inactive'):'flag'));result=runs[0];result.others=runs.slice(1);
+   duration=Math.max(0,...runs.filter(r=>r.valid).map(r=>r.time));
+   sounds=runs.filter(r=>r.valid).flatMap(r=>r.trace.filter(e=>e.op==='sound')).sort((a,b)=>a.start-b.start);
+  }
+  simulate();
   if(!runs.some(r=>r.valid&&r.trace.length)){status.textContent=result.error?'تعذر تنفيذ المقطع؛ راجع عدد التكرارات واللبنات.':robot?'أضف لبنة حركة أولًا.':'ضع لبنة العلم في بداية المقطع.';redraw();return;}
   const C=globalThis.AudioContext||globalThis.webkitAudioContext;if(C){try{audio??=new C();audio.resume().catch(()=>{});}catch{}}
-  const sounds=runs.filter(r=>r.valid).flatMap(r=>r.trace.filter(e=>e.op==='sound')).sort((a,b)=>a.start-b.start);let ix=0;const started=performance.now();status.textContent='قيد التنفيذ';
-  function tick(now){if(!root.isConnected){stop();audio?.close().catch(()=>{});return;}clock=Math.min(duration,now-started);while(ix<sounds.length&&sounds[ix].start<=clock){playSound(audio,sounds[ix++].sound);}
+  let ix=0,started=performance.now();status.textContent='قيد التنفيذ';
+  function tick(now){if(!root.isConnected){stop();audio?.close().catch(()=>{});return;}clock=Math.min(duration,now-started);const question=runs.map((r,i)=>({...r.pending,i})).filter(q=>q.time!==undefined&&q.time<=clock).sort((a,b)=>a.time-b.time)[0];
+  if(question){
+   clock=question.time;redraw();const form=el('form'),input=el('input'),submit=el('button','إجابة');submit.type='submit';input.maxLength=180;
+   form.append(label(question.text,input),submit);view.append(form);promptForm=form;input.focus();status.textContent='بانتظار إجابتك';
+   form.onsubmit=e=>{e.preventDefault();answers[question.i].push(input.value);form.remove();promptForm=null;simulate();started=performance.now()-clock;status.textContent='قيد التنفيذ';frame=requestAnimationFrame(tick);};return;
+  }
+  while(ix<sounds.length&&sounds[ix].start<=clock){playSound(audio,sounds[ix++].sound);}
   redraw();if(clock<duration)frame=requestAnimationFrame(tick);else{frame=0;status.textContent='اكتمل التنفيذ';}}
   tick(started);
  }
  function add(op,list=target,at){const def=byOp.get(op);if(!def)return;if(total(state.blocks)>=160){status.textContent='بلغ المقطع الحد الأقصى للبنات.';return;}const block=newBlock(def);if(op==='sound')block.sound=(state.clips??['cat'])[0]??'cat';list.splice(at??list.length,0,block);changed();refresh();}
  function total(items){return items.reduce((sum,b)=>sum+1+(Array.isArray(b.body)?total(b.body):0),0);}
- function isProject(p){function valid(list,depth){return depth<=5&&Array.isArray(list)&&list.length<=160&&list.every(b=>b&&byOp.has(b.op)&&(b.op!=='repeat'||valid(b.body,depth+1))&&byOp.get(b.op).slice(3).every(f=>f.type==='text'?typeof b[f.key]==='string'&&b[f.key].length<=180:f.type==='select'?f.options.some(([k])=>k===b[f.key]):Number.isFinite(b[f.key])&&b[f.key]>=f.min&&b[f.key]<=f.max));}
+ function isProject(p){function valid(list,depth){return depth<=5&&Array.isArray(list)&&list.length<=160&&list.every(b=>b&&byOp.has(b.op)&&(!['repeat','ifAnswer'].includes(b.op)||valid(b.body,depth+1))&&byOp.get(b.op).slice(3).every(f=>f.type==='text'?typeof b[f.key]==='string'&&b[f.key].length<=180:f.type==='select'?f.options.some(([k])=>k===b[f.key]):Number.isFinite(b[f.key])&&b[f.key]>=f.min&&b[f.key]<=f.max));}
  return p&&(p.others===undefined||!robot&&Array.isArray(p.others)&&p.others.length<=11&&p.others.every(a=>a&&a.others===undefined&&isProject({...a,scene:p.scene,title:p.title})))&&(!robot||validObjects(p.objects))&&(p.clips===undefined||Array.isArray(p.clips)&&p.clips.length<=4&&p.clips.every(v=>['bird','bounce','cat','door'].includes(v)))&&(p.costume===undefined||poses.some(([id])=>id===p.costume))&&typeof p.title==='string'&&p.title.length<=80&&Number.isFinite(p.x)&&Math.abs(p.x)<=220&&Number.isFinite(p.y)&&Math.abs(p.y)<=160&&scenes[kind].some(([k])=>k===p.scene)&&valid(p.blocks,0)&&total(p.blocks)<=160;}
  function drop(list,container,at){container.ondragover=e=>{e.preventDefault();e.stopPropagation();};container.ondrop=e=>{e.preventDefault();e.stopPropagation();const op=e.dataTransfer.getData('application/x-maamel-op');
  if(dragged&&e.dataTransfer.getData('application/x-maamel-move')){
@@ -131,7 +152,7 @@ export function mountEditor(host,previous,onChange,kind,initial){
  function refresh(){actorControls();refreshChrome();groups.replaceChildren();palette.replaceChildren();for(const g of new Set(defs.map(d=>d[1]))){if(g==='القلم'&&!hasPen())continue;const b=button(g,()=>{group=g;refresh();});b.style.setProperty('--category',colors[g]);b.setAttribute('aria-pressed',String(group===g));if(group===g)b.className='active';groups.append(b);}
   if(!robot&&!hasPen()){const b=button('إضافة ملحق',()=>{const dialog=modal(root,'ملحقات سكراتش');dialog.append(button('إضافة القلم',()=>{dialog.close();state.pen=true;group='القلم';changed();refresh();}));});groups.append(b);}
   for(const d of defs.filter(d=>d[1]===group)){const b=button(d[2],()=>add(d[0]));b.className='tile';b.style.setProperty('--ink',colors[d[1]]);b.draggable=true;b.ondragstart=e=>e.dataTransfer.setData('application/x-maamel-op',d[0]);palette.append(b);}
-  tree.replaceChildren();renderList(state.blocks,tree,0);targetLabel.textContent=target===state.blocks?'الإضافة إلى المقطع الرئيسي':'الإضافة داخل التكرار المحدد';drop(state.blocks,workspace);
+  tree.replaceChildren();renderList(state.blocks,tree,0);targetLabel.textContent=target===state.blocks?'الإضافة إلى المقطع الرئيسي':'الإضافة داخل اللبنة المحددة';drop(state.blocks,workspace);
  }
  function hasPen(){return state.pen||state.blocks.some(function used(b){return byOp.get(b.op)?.[1]==='القلم'||b.body?.some(used);});}
  function renderList(list,parent,depth){for(const [i,b] of list.entries()){
@@ -142,7 +163,7 @@ export function mountEditor(host,previous,onChange,kind,initial){
    params.append(label(spec.label,input));}
   const cmds=el('div');cmds.className='commands';const swap=delta=>{[list[i],list[i+delta]]=[list[i+delta],list[i]];changed();refresh();};const up=button('↑',()=>swap(-1)),down=button('↓',()=>swap(1));up.ariaLabel='انقل اللبنة للأعلى';down.ariaLabel='انقل اللبنة للأسفل';up.disabled=i===0;down.disabled=i===list.length-1;
   cmds.append(up,down,button('مضاعفة',()=>{if(total(state.blocks)+total([b])>160)return;list.splice(i+1,0,structuredClone(b));changed();refresh();}),button('حذف',()=>{list.splice(i,1);target=state.blocks;changed();refresh();}));const edit=el('details');edit.className='block-commands';const more=el('summary','خيارات اللبنة');edit.append(more,cmds);node.append(edit);node.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();edit.open=true;};
-  if(b.op==='repeat'){const nest=el('div');nest.className='nest';if(depth<5){nest.append(button('أضف لبنات داخل التكرار',()=>{target=b.body;refresh();}));drop(b.body,nest);}renderList(b.body,nest,depth+1);node.append(nest);}parent.append(node);
+  if(['repeat','ifAnswer'].includes(b.op)){const nest=el('div');nest.className='nest';if(depth<5){nest.append(button(b.op==='repeat'?'أضف لبنات داخل التكرار':'أضف لبنات عند تحقق الشرط',()=>{target=b.body;refresh();}));drop(b.body,nest);}renderList(b.body,nest,depth+1);node.append(nest);}parent.append(node);
  }}
  const onKey=e=>{if(e.key==='Escape'){view.classList.remove('expanded');expand.textContent='تكبير المنصة';for(const m of root.querySelectorAll('.block-menu'))m.open=false;}};
  root.addEventListener('keydown',onKey);refresh();reset();return ()=>{root.removeEventListener('keydown',onKey);stop();audio?.close().catch(()=>{});};

@@ -4,7 +4,11 @@ import {tasks,initial,grade} from './model.mjs';
 import {run} from './runtime.mjs';
 const flag={op:'flag'},down={op:'down'},up={op:'up'};
 const move=n=>({op:'move',n}),turn=(n,op='cw')=>({op,n}),say=(text,seconds=2)=>({op:'say',text,seconds}),sound=sound=>({op:'sound',sound}),repeat=(n,...body)=>({op:'repeat',n,body});
+const balloon=costume=>({costume,blocks:[{op:'clicked'},{op:'ask',text:'ما لوني؟'},{op:'reply',prefix:'لوني ',suffix:'',seconds:3}]});
 const examples={
+ 'balloon-colors':{scene:'light',...balloon('blueBalloon'),others:[balloon('yellowBalloon'),balloon('purpleBalloon')]},
+ 'age-dialog':{blocks:[{op:'clicked'},{op:'ask',text:'كم عمرك؟'},{op:'reply',prefix:'عمرك ',suffix:' سنة'}]},
+ 'exam-result':[{op:'ask',text:'كم درجتك؟'},...['lt','eq','gt'].map(comparison=>({op:'ifAnswer',comparison,value:50,body:[say(comparison==='lt'?'راسب':'ناجح')]}))],
  aquarium:{scene:'sea',costume:'fish',blocks:[flag,move(12)],others:[{costume:'jelly',blocks:[flag,turn(90),move(25)]},{costume:'puffer',blocks:[flag,repeat(3,move(10))]}]},
  'feeding-hen':{scene:'farm',blocks:[flag,repeat(10,{op:'costume',costume:'hen-c'},{op:'wait',n:.3},{op:'costume',costume:'hen-d'},{op:'wait',n:.3})]},
  'red-triangle-center':[{op:'color',n:0},down,repeat(3,move(100),turn(120)),up,turn(30),move(55),sound('cat')],

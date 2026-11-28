@@ -8,6 +8,7 @@ export function paintBackdrop(c,kind,scene) {
  c.lineWidth=2;c.strokeStyle='#fffa';
  if(scene==='space'){for(let i=0;i<90;i++){c.fillStyle=i%3?'white':'#ffd680';circle(c,(i*263%479)-240,(i*197%357)-180,(i%3+1)*.65,true);}c.fillStyle='#8587cc';circle(c,-135,-86,28,true);c.strokeStyle='#d1c3ef';c.beginPath();c.ellipse(-135,-86,42,9,-.3,0,TAU);c.stroke();}
  if(scene==='grass'){c.fillStyle='#72b986';c.beginPath();c.ellipse(100,160,310,110,0,0,TAU);c.fill();c.fillStyle='#437f68';c.beginPath();c.ellipse(-160,180,300,80,0,0,TAU);c.fill();}
+ if(scene==='light'){c.fillStyle='#ffe4bb';c.fillRect(-240,-180,480,360);c.fillStyle='#fff';circle(c,0,0,135,true);}
  if(scene==='sea'){
   const water=c.createLinearGradient(0,-180,0,180);water.addColorStop(0,'#278ac0');water.addColorStop(1,'#10496b');c.fillStyle=water;c.fillRect(-240,-180,480,360);
   c.fillStyle='#dbc58e';c.fillRect(-240,148,480,32);c.strokeStyle='#68ad80';c.lineWidth=5;
@@ -33,6 +34,10 @@ export function paintSprite(c,kind,x,y,angle,scale=1,costume){
   c.fillStyle='#293a45';c.fillRect(-14,-13,25,5);c.fillRect(-14,8,25,5);
   c.fillStyle='#ffbc53';c.fillRect(-15,-8,30,16);c.fillStyle='#344950';c.fillRect(-7,-6,12,12);
   c.fillStyle='#f1fffa';circle(c,12,-4,2,true);circle(c,12,4,2,true);
+ }else if(['blueBalloon','yellowBalloon','purpleBalloon'].includes(costume)){
+  c.fillStyle=({blueBalloon:'#279bd2',yellowBalloon:'#f2ac18',purpleBalloon:'#9160b5'})[costume];
+  c.beginPath();c.ellipse(0,-4,12,16,0,0,TAU);c.fill();path(c,[[0,10],[-2,15],[2,15]],true);c.strokeStyle='#806f70';c.lineWidth=1;
+  c.beginPath();c.moveTo(0,15);c.bezierCurveTo(7,20,-6,24,1,29);c.stroke();
  }else if(['fish','puffer','jelly'].includes(costume)){
   c.fillStyle=costume==='fish'?'#ff8945':costume==='jelly'?'#e996b4':'#f6c974';
   if(costume==='jelly'){

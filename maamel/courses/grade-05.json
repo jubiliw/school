@@ -84,6 +84,13 @@
       "lesson": "الكائنات في سكراتش",
       "start": 170,
       "end": 181
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "المعاملات الشرطية",
+      "start": 182,
+      "end": 192
     }
   ],
   "activities": [
@@ -206,6 +213,26 @@
       "program": "scratch",
       "task": "aquarium",
       "page": 181
+    },
+    {
+      "program": "scratch",
+      "task": "age-dialog",
+      "page": 189
+    },
+    {
+      "program": "scratch",
+      "task": "balloon-colors",
+      "page": 190
+    },
+    {
+      "program": "review",
+      "task": "weather-decisions",
+      "page": 191
+    },
+    {
+      "program": "scratch",
+      "task": "exam-result",
+      "page": 192
     }
   ]
 }

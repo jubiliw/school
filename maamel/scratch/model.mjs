@@ -1,5 +1,8 @@
 import {run,assess,near,polygon} from './runtime.mjs';
 export const tasks=[
+ ['balloon-colors','ألوان البالونات',190,'اختر خلفية الضوء وأضف ثلاثة بالونات مختلفة الألوان. عند نقر كل بالون يسأل عن لونه ثم يعلن إجابتك ثلاث ثوان.'],
+ ['age-dialog','حوار عن العمر',189,'عند نقر الكائن اسأل المستخدم عن عمره، ثم اعرض إجابته ضمن جملة.'],
+ ['exam-result','نتيجة الاختبار',192,'اسأل عن الدرجة. اعرض راسب للدرجة الأقل من ٥٠ وناجح عند ٥٠ أو أعلى.'],
  ['aquarium','رسوم متحركة تحت الماء',181,'اختر قاع البحر وأضف سمكة المهرج وقنديل البحر والسمكة المنتفخة. أنشئ لكل منها مقطع حركة مختلفًا يبدأ بالعلم.'],
  ['feeding-hen','الدجاجة تأكل',180,'اختر خلفية المزرعة. عند نقر العلم كرر عشر مرات التبديل بين مظهري الدجاجة hen-c وhen-d وانتظر ٠٫٣ ثانية بعد كل مظهر.'],
  ['red-triangle-center','القطة داخل المثلث الأحمر',169,'ارسم بالقلم مثلثًا أحمر كبيرًا. ارفع القلم وحرك القطة داخل المثلث وشغّل صوتًا وهي بداخله.'],
@@ -25,6 +28,26 @@ export const initial=()=>({v:1,title:'مشروع جديد',x:0,y:0,scene:'plain'
 const norm=t=>String(t??'').replace(/[أإآ]/g,'ا').replace(/[ً-ْـ!؟.]/g,'').trim();
 export function grade(s,id){
  const result=run(s,'scratch'), a=result.trace;
+ if(id==='balloon-colors'){
+  const actors=[s,...(Array.isArray(s?.others)?s.others.slice(0,11):[])];
+  const checks=[['خلفية الضوء',s?.scene==='light'],['إزالة القطة من المنصة',actors.length===3&&actors.every(a=>a?.costume?.endsWith('Balloon'))]];
+  for(const [key,label] of [['blueBalloon','الأزرق'],['yellowBalloon','الأصفر'],['purpleBalloon','البنفسجي']]){
+   const actor=actors.find(a=>a?.costume===key),start=run(actor,'scratch',[],'clicked');
+   const responds=['أخضر','بنفسجي'].every(input=>{const r=run(actor,'scratch',[input],'clicked');return r.valid&&!r.pending&&r.trace.some(e=>e.op==='say'&&e.text.includes(input)&&e.text.length>input.length&&e.end-e.start===3000);});
+   checks.push(['سؤال وإجابة البالون '+label,start.valid&&Boolean(start.pending?.text.trim())&&responds]);
+  }return assess(checks);
+ }
+ if(id==='age-dialog'||id==='exam-result'){
+  const event=id==='age-dialog'?'clicked':'flag',start=run(s,'scratch',[],event);
+  const checks=[['سؤال ينتظر إدخال المستخدم',start.valid&&Boolean(start.pending?.text.trim())]];
+  const samples=id==='age-dialog'?[[11,'11'],[14,'14']]:[[49,'راسب'],[50,'ناجح'],[82,'ناجح']];
+  for(const [input,expected] of samples){
+   const replay=run(s,'scratch',[input],event),words=replay.trace.filter(e=>e.op==='say').map(e=>norm(e.text));
+   const match=id==='age-dialog'?words.some(w=>w.includes(expected)&&w.length>expected.length):words.some(w=>w.includes(expected))&&!words.some(w=>w.includes(expected==='ناجح'?'راسب':'ناجح'));
+   checks.push(['الاستجابة للقيمة '+input,replay.valid&&!replay.pending&&match]);
+  }
+  return assess(checks);
+ }
  if(id==='aquarium'){
   const actors=[s,...(Array.isArray(s?.others)?s.others.slice(0,11):[])],paths=new Set(),checks=[['خلفية قاع البحر',s?.scene==='sea']];
   for(const [key,name] of [['fish','سمكة المهرج'],['jelly','قنديل البحر'],['puffer','السمكة المنتفخة']]){
