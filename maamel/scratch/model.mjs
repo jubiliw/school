@@ -1,5 +1,8 @@
+import {createMotionScene} from './continuous.mjs';
 import {run,assess,near,polygon} from './runtime.mjs';
 export const tasks=[
+ ['space-dialog','حوار في سفينة الفضاء',216,'اختر سفينة الفضاء وأضف Pico وNano. اكتب حوارًا من اختيارك، واستخدم رسالة لانتقال الكلام من أحدهما إلى الآخر.'],
+ ['catch-balls','اضغط على الكرة',204,'ابدأ بثلاث كرات متحركة ترتد عن الحافة. عند نقر أي كرة أوقف حركتها واجعلها تقول «لقد حصلت على الكرة».'],
  ['arrow-cat','تحريك القطة بالأسهم',205,'برمج القطة لتتحرك في الاتجاه الذي تضغط سهمه وتعلن اتجاهها. اختبر المفاتيح الأربعة على المنصة.'],
  ['balloon-colors','ألوان البالونات',190,'اختر خلفية الضوء وأضف ثلاثة بالونات مختلفة الألوان. عند نقر كل بالون يسأل عن لونه ثم يعلن إجابتك ثلاث ثوان.'],
  ['age-dialog','حوار عن العمر',189,'عند نقر الكائن اسأل المستخدم عن عمره، ثم اعرض إجابته ضمن جملة.'],
@@ -29,6 +32,28 @@ export const initial=()=>({v:1,title:'مشروع جديد',x:0,y:0,scene:'plain'
 const norm=t=>String(t??'').replace(/[أإآ]/g,'ا').replace(/[ً-ْـ!؟.]/g,'').trim();
 export function grade(s,id){
  const result=run(s,'scratch'), a=result.trace;
+ if(id==='space-dialog'){
+  const actors=[s,...(Array.isArray(s?.others)?s.others.slice(0,11):[])].filter(Boolean);
+  const checks=[['السفينة والكائنان',s?.scene==='spaceship'&&actors.length===2&&['pico','nano'].every(key=>actors.some(a=>a.costume===key))]];
+  const scene=createMotionScene(actors),spoke=new Set();let exchanged=false,previous='';
+  for(let t=0;t<=30000;t+=100){
+   scene.tick(t);for(const sprite of scene.sprites)if(sprite.speech.trim()){
+    spoke.add(sprite.actor.costume);if(previous&&previous!==sprite.actor.costume)exchanged=true;previous=sprite.actor.costume;
+   }
+  }
+  const signals=actors.flatMap(a=>a.blocks.filter(b=>b.op==='broadcast'||b.op==='broadcastWait').map(b=>({from:a,message:b.message})));
+  return assess([...checks,['بث واستقبال رسالة مشتركة',signals.some(v=>actors.some(a=>a!==v.from&&a.blocks.some(b=>b.op==='receive'&&b.message===v.message)))],['كلام الكائنين عند التشغيل',exchanged&&spoke.has('pico')&&spoke.has('nano')]]);
+ }
+ if(id==='catch-balls'){
+  const actors=[s,...(Array.isArray(s?.others)?s.others.slice(0,11):[])];
+  const checks=[['ثلاث كرات مختلفة',new Set(actors.map(a=>a.costume).filter(id=>['beachBall','baseball','basketBall'].includes(id))).size===3]];
+  for(const [i,actor] of actors.slice(0,3).entries()){
+   const trial=createMotionScene([actor]);trial.tick(0);const ball=trial.sprites[0],x=ball.x,y=ball.y;trial.tick(320);
+   const moving=ball.x!==x||ball.y!==y;trial.click(0,321);trial.tick(321);const stopX=ball.x,stopY=ball.y,said=norm(ball.speech).includes('الكره')||norm(ball.speech).includes('الكرة');trial.tick(1500);
+   checks.push(['حركة مستمرة وارتداد الكرة '+(i+1),moving&&actor.blocks.some(b=>b.op==='forever'&&b.body?.some(v=>v.op==='edge'))],['اصطياد الكرة '+(i+1),moving&&said&&ball.x===stopX&&ball.y===stopY]);
+  }
+  return assess(checks);
+ }
  if(id==='arrow-cat'){
   const directions=[['ArrowUp',0,-1,'اعلى'],['ArrowDown',0,1,'اسفل'],['ArrowRight',1,0,'يمين'],['ArrowLeft',-1,0,'يسار']];
   const checks=[];

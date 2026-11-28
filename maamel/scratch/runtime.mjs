@@ -6,14 +6,14 @@ export function assess(checks) {
   const remaining=checks.filter(([,pass])=>!pass).map(([label])=>label);
   return {score:Math.round(100*(checks.length-remaining.length)/checks.length),feedback:remaining.length?'تبقّى: '+remaining.join('، '):'اكتملت معايير النشاط.'};
 }
-export function run(state, kind, answers=[],event='flag') {
+export function run(state, kind, answers=[],event='flag',pose=null) {
   const robot=kind==='robot', source=state?.blocks;
-  const origin={x:number(state?.x,0,-220,220),y:number(state?.y,0,-160,160),angle:0};
+  const origin=pose??{x:number(state?.x,0,-220,220),y:number(state?.y,0,-160,160),angle:0};
   let {x,y,angle}=origin, down=robot, color=60, width=2, time=0, visits=0;
   let costume=state?.costume,answer='',answerIndex=0,pending=null;
   let trace=[], frames=[], segments=[], stamps=[];
   if(!Array.isArray(source) || source.length>160) return {valid:false,trace,frames,segments,stamps,origin};
-  const hats=['flag','clicked','key'];
+  const hats=['flag','clicked','key','receive'];
   const matches=b=>b?.op==='key'?b.key===event:hats.includes(b?.op)&&b.op===event;
   let active=robot;const blocks=robot?source:source.filter(b=>{
     if(hats.includes(b?.op))active=matches(b);

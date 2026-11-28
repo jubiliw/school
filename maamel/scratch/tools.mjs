@@ -4,9 +4,10 @@ const movement=n('n','خطوة',10,-480,480), degree=n('n','درجة',15,0,360),
 const distance=n('distance','المسافة (سم)',20,0,350), speed=n('speed','السرعة %',30,0,100);
 const direction=choice('direction','الاتجاه','forward',[['forward','إلى الأمام'],['back','إلى الخلف']]);
 export const sounds=[['bird','العصفور'],['bounce','ارتداد الكرة'],['door','صرير الباب'],['cat','مواء']];
-export const poses=[['orange','قطة برتقالية'],['slate','قطة رمادية'],['sand','قطة رملية'],['hen-c','دجاجة · hen-c'],['hen-d','دجاجة · hen-d'],['fish','سمكة المهرج'],['puffer','السمكة المنتفخة'],['jelly','قنديل البحر'],['blueBalloon','بالون أزرق'],['yellowBalloon','بالون أصفر'],['purpleBalloon','بالون بنفسجي']];
+export const poses=[['orange','قطة برتقالية'],['slate','قطة رمادية'],['sand','قطة رملية'],['hen-c','دجاجة · hen-c'],['hen-d','دجاجة · hen-d'],['fish','سمكة المهرج'],['puffer','السمكة المنتفخة'],['jelly','قنديل البحر'],['pico','Pico · رائد الفضاء'],['nano','Nano · الرفيق'],['beachBall','كرة شاطئ'],['baseball','كرة بيسبول'],['basketBall','كرة سلة'],['blueBalloon','بالون أزرق'],['yellowBalloon','بالون أصفر'],['purpleBalloon','بالون بنفسجي']];
 export const scratchTools=[
  ['flag','الأحداث','عند نقر العلم'],
+ ...[['receive','عندما أتلقى'],['broadcast','بث'],['broadcastWait','بث وانتظر']].map(([op,label])=>[op,'الأحداث',label,{key:'message',label:'اسم الرسالة',type:'text',value:'رسالة 1'}]),
  ['key','الأحداث','عند ضغط مفتاح',choice('key','المفتاح','ArrowUp',[['ArrowUp','السهم الأعلى'],['ArrowDown','السهم الأسفل'],['ArrowRight','السهم الأيمن'],['ArrowLeft','السهم الأيسر']])],
  ['point','الحركة','اتجه نحو الاتجاه',n('direction','درجة',90,-180,180)],['edge','الحركة','ارتد إذا كنت عند الحافة'],
  ['move','الحركة','تحرّك',movement],['cw','الحركة','استدر يمينًا',degree],['ccw','الحركة','استدر يسارًا',degree],
@@ -17,6 +18,7 @@ export const scratchTools=[
  ['costume','الهيئة','غيّر المظهر إلى',choice('costume','المظهر','hen-c',poses)],
  ['say','الهيئة','قل',{key:'text',type:'text',label:'النص',value:'مرحبًا!'},time],
  ['sound','الصوت','شغّل الصوت حتى انتهائه',choice('sound','الصوت','bird',sounds)],
+ ['forever','التحكم','كرّر باستمرار'],['stopOther','التحكم','أوقف المقاطع الأخرى في الكائن'],
  ['repeat','التحكم','كرّر',n('n','مرة',10,0,100)],['wait','التحكم','انتظر',n('n','ثانية',1,0,60)],
  ['down','القلم','أنزل القلم'],['up','القلم','ارفع القلم'],['erase','القلم','امسح الكل'],['stamp','القلم','اطبع'],
  ['color','القلم','اجعل لون القلم',n('n','من ٠ إلى ١٠٠',60,0,100)],['colorBy','القلم','غيّر اللون بمقدار',n('n','مقدار التغيير',10,-100,100)],
@@ -27,5 +29,5 @@ export const robotTools=[
  ['steer','الحدث','توجيه · Steer',direction,n('left','المحرك الأيسر %',50,0,100),n('right','المحرك الأيمن %',30,0,100),distance],
  ['turn','الحدث','استدارة · Turn',choice('direction','الاتجاه','right',[['right','يمين'],['left','يسار']]),speed,degree]
 ];
-export const scenes={scratch:[['plain','بيضاء'],['space','الفضاء'],['football','كرة القدم'],['basketball','ملعب السلة'],['grass','العشب'],['farm','المزرعة'],['sea','قاع البحر'],['light','ضوء · Light'],['castle','القلعة']],robot:[['grid','شبكة القياس'],['plain','لوحة الرسم']]};
-export function newBlock(def){const block={op:def[0]};if(['repeat','ifAnswer'].includes(block.op))block.body=[];for(const field of def.slice(3))block[field.key]=field.value;return block;}
+export const scenes={scratch:[['plain','بيضاء'],['space','الفضاء'],['spaceship','سفينة الفضاء'],['football','كرة القدم'],['basketball','ملعب السلة'],['grass','العشب'],['farm','المزرعة'],['sea','قاع البحر'],['light','ضوء · Light'],['castle','القلعة']],robot:[['grid','شبكة القياس'],['plain','لوحة الرسم']]};
+export function newBlock(def){const block={op:def[0]};if(['repeat','ifAnswer','forever'].includes(block.op))block.body=[];for(const field of def.slice(3))block[field.key]=field.value;return block;}

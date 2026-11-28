@@ -6,6 +6,7 @@ export function paintBackdrop(c,kind,scene) {
  const colors={plain:'#fff',grid:'#f1f7f6',grass:'#d1eff9',castle:'#f5ddbd',basketball:'#dda96a',football:'#319469',space:'#172953'};
  c.fillStyle=colors[scene]||'#fff';c.fillRect(-240,-180,480,360);
  c.lineWidth=2;c.strokeStyle='#fffa';
+ if(scene==='spaceship'){c.fillStyle='#447969';c.fillRect(-240,-180,480,360);c.fillStyle='#173657';c.beginPath();c.ellipse(0,-50,165,90,0,0,TAU);c.fill();for(let i=0;i<24;i++){c.fillStyle='#f5ce6a';circle(c,(i*23)%205-103,(i*13)%75-90,2,true);}c.fillStyle='#254d46';c.fillRect(-200,90,400,49);}
  if(scene==='space'){for(let i=0;i<90;i++){c.fillStyle=i%3?'white':'#ffd680';circle(c,(i*263%479)-240,(i*197%357)-180,(i%3+1)*.65,true);}c.fillStyle='#8587cc';circle(c,-135,-86,28,true);c.strokeStyle='#d1c3ef';c.beginPath();c.ellipse(-135,-86,42,9,-.3,0,TAU);c.stroke();}
  if(scene==='grass'){c.fillStyle='#72b986';c.beginPath();c.ellipse(100,160,310,110,0,0,TAU);c.fill();c.fillStyle='#437f68';c.beginPath();c.ellipse(-160,180,300,80,0,0,TAU);c.fill();}
  if(scene==='light'){c.fillStyle='#ffe4bb';c.fillRect(-240,-180,480,360);c.fillStyle='#fff';circle(c,0,0,135,true);}
@@ -34,6 +35,13 @@ export function paintSprite(c,kind,x,y,angle,scale=1,costume){
   c.fillStyle='#293a45';c.fillRect(-14,-13,25,5);c.fillRect(-14,8,25,5);
   c.fillStyle='#ffbc53';c.fillRect(-15,-8,30,16);c.fillStyle='#344950';c.fillRect(-7,-6,12,12);
   c.fillStyle='#f1fffa';circle(c,12,-4,2,true);circle(c,12,4,2,true);
+ }else if(costume==='pico'||costume==='nano'){
+  c.fillStyle=costume==='pico'?'#c86242':'#687c90';c.fillRect(-8,0,16,16);c.fillRect(-9,12,5,9);c.fillRect(4,12,5,9);circle(c,0,-7,14,true);
+  c.fillStyle='#e4f6ed';c.beginPath();c.ellipse(0,-7,10,7,0,0,TAU);c.fill();c.fillStyle='#374957';circle(c,3,-7,1.7,true);circle(c,-3,-7,1.7,true);
+ }else if(['beachBall','baseball','basketBall'].includes(costume)){
+  c.fillStyle=costume==='basketBall'?'#e69245':'#fff6dc';circle(c,0,0,13,true);c.strokeStyle='#835751';circle(c,0,0,13,false);
+  if(costume==='beachBall'){for(let i=0;i<4;i++){c.fillStyle=['#c84c44','#478bba','#e6b543','#51a977'][i];circle(c,7*Math.cos(i*Math.PI/2),7*Math.sin(i*Math.PI/2),4,true);}}
+  else{c.beginPath();c.ellipse(0,0,6,13,.4,0,TAU);c.stroke();}
  }else if(['blueBalloon','yellowBalloon','purpleBalloon'].includes(costume)){
   c.fillStyle=({blueBalloon:'#279bd2',yellowBalloon:'#f2ac18',purpleBalloon:'#9160b5'})[costume];
   c.beginPath();c.ellipse(0,-4,12,16,0,0,TAU);c.fill();path(c,[[0,10],[-2,15],[2,15]],true);c.strokeStyle='#806f70';c.lineWidth=1;

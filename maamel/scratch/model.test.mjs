@@ -5,7 +5,10 @@ import {run} from './runtime.mjs';
 const flag={op:'flag'},down={op:'down'},up={op:'up'};
 const move=n=>({op:'move',n}),turn=(n,op='cw')=>({op,n}),say=(text,seconds=2)=>({op:'say',text,seconds}),sound=sound=>({op:'sound',sound}),repeat=(n,...body)=>({op:'repeat',n,body});
 const balloon=costume=>({costume,blocks:[{op:'clicked'},{op:'ask',text:'ما لوني؟'},{op:'reply',prefix:'لوني ',suffix:'',seconds:3}]});
+const ball=costume=>({costume,blocks:[flag,{op:'forever',body:[move(10),{op:'edge'}]},{op:'clicked'},{op:'stopOther'},say('لقد حصلت على الكرة')]});
 const examples={
+ 'space-dialog':{costume:'pico',scene:'spaceship',blocks:[flag,say('مرحبًا'),{op:'broadcastWait',message:'ابدأ'}],others:[{costume:'nano',blocks:[{op:'receive',message:'ابدأ'},say('أهلًا')]}]},
+ 'catch-balls':{...ball('beachBall'),others:[ball('baseball'),ball('basketBall')]},
  'arrow-cat':{blocks:[['ArrowUp',0,'أعلى'],['ArrowDown',180,'أسفل'],['ArrowRight',90,'يمين'],['ArrowLeft',-90,'يسار']].flatMap(([key,direction,text])=>[{op:'key',key},{op:'point',direction},move(10),say(text)])},
  'balloon-colors':{scene:'light',...balloon('blueBalloon'),others:[balloon('yellowBalloon'),balloon('purpleBalloon')]},
  'age-dialog':{blocks:[{op:'clicked'},{op:'ask',text:'كم عمرك؟'},{op:'reply',prefix:'عمرك ',suffix:' سنة'}]},
@@ -31,4 +34,20 @@ test('pen states, nested loop, stamps, clear, width and turn direction',()=>{
 });
 test('different start positions and wait retained in playback',()=>{
  const r=run({...initial(),x:-45,blocks:[flag,{op:'wait',n:2},move(30)]},'scratch');assert.equal(r.frames[0].startTime,2000);assert.equal(r.x,-15);
+});
+
+test('تستمر الكرة الأخرى بعد الصيد ويعود اتجاه الحركة عند الحافة',async()=>{
+ const {createMotionScene}=await import('./continuous.mjs');
+ const scene=createMotionScene([{...ball('basketBall'),x:220},{...ball('baseball'),x:-100}]);
+ scene.tick(0);scene.tick(160);scene.tick(320);
+ assert.ok(scene.sprites[0].angle===180||scene.sprites[0].angle===-180);
+ scene.click(0,321);scene.tick(321);
+ const [first,second]=scene.sprites.map(s=>s.x);scene.tick(1000);
+ assert.equal(scene.sprites[0].x,first);assert.notEqual(scene.sprites[1].x,second);
+});
+test('لا يتابع المرسل قبل انتهاء مقطع المستقبِل عند البث والانتظار',async()=>{
+ const {createMotionScene}=await import('./continuous.mjs');
+ const scene=createMotionScene([{blocks:[flag,{op:'broadcastWait',message:'دورك'},say('انتهى')]},{blocks:[{op:'receive',message:'دورك'},say('أجيب',1)]}]);
+ scene.tick(0);scene.tick(500);assert.equal(scene.sprites[0].speech,'');assert.equal(scene.sprites[1].speech,'أجيب');
+ scene.tick(1000);scene.tick(1016);assert.equal(scene.sprites[0].speech,'انتهى');
 });
