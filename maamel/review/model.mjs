@@ -1,6 +1,7 @@
+import {fifthProgramming} from './fifth-programming.mjs';
 import {term1} from './term1.mjs';
 import {term2} from './term2.mjs';
-export const reviews=[...term1,...term2];
+export const reviews=[...term1,...term2,...fifthProgramming];
 export const tasks=reviews.map(({id,title,page})=>({id,title,page,instructions:'اختر إجابة لكل سؤال. تُحسَب الدرجة من عدد الإجابات الصحيحة، ويمكنك مراجعة اختياراتك قبل التسليم.'}));
 export function initial(){return {answers:{}}}
 export function grade(state,task){

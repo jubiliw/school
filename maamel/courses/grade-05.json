@@ -56,6 +56,27 @@
       "lesson": "استخدام أجهزة الالتقاط وتحرير مقاطع الصوت",
       "start": 103,
       "end": 131
+    },
+    {
+      "term": 1,
+      "unit": "الوسائط المتعددة",
+      "lesson": "البحث عن الوسائط المتعددة وإنشاء وتحرير مقاطع الفيديو",
+      "start": 132,
+      "end": 154
+    },
+    {
+      "term": 1,
+      "unit": "الوسائط المتعددة",
+      "lesson": "مشروع الوحدة",
+      "start": 155,
+      "end": 155
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "كيفية تصميم برنامج",
+      "start": 162,
+      "end": 169
     }
   ],
   "activities": [
@@ -138,6 +159,36 @@
       "program": "audacity",
       "task": "school-podcast",
       "page": 131
+    },
+    {
+      "program": "media",
+      "task": "forest-media",
+      "page": 152
+    },
+    {
+      "program": "media",
+      "task": "forest-story",
+      "page": 154
+    },
+    {
+      "program": "media",
+      "task": "gardens-film",
+      "page": 155
+    },
+    {
+      "program": "review",
+      "task": "algorithm-steps",
+      "page": 167
+    },
+    {
+      "program": "review",
+      "task": "flowchart-shapes",
+      "page": 168
+    },
+    {
+      "program": "scratch",
+      "task": "red-triangle-center",
+      "page": 169
     }
   ]
 }

@@ -1,5 +1,6 @@
 import {run,assess,near,polygon} from './runtime.mjs';
 export const tasks=[
+ ['red-triangle-center','القطة داخل المثلث الأحمر',169,'ارسم بالقلم مثلثًا أحمر كبيرًا. ارفع القلم وحرك القطة داخل المثلث وشغّل صوتًا وهي بداخله.'],
  ['space','مشهد الفضاء',128,'اختر خلفية الفضاء، وضع القطة في المنتصف وسم المشروع «الفضاء».'],
  ['football','كرة القدم',128,'اختر ملعب كرة القدم، واسحب القطة إلى اليسار وسمّ المشروع «كرة القدم».'],
  ['speak','فقاعة الترحيب',132,'عند نقر العلم، اجعل القطة تقول «مرحبا بكم في سكراتش» لخمس ثوانٍ.'],
@@ -31,6 +32,14 @@ export function grade(s,id){
  const sound=a.find(e=>e.op==='sound');
  let checks=[];
  switch(id){
+ case 'red-triangle-center':{
+  const cross=(a,b,p)=>(b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);
+  const vertices=lines.map(l=>l.from);
+  const closed=lines.length===3&&lines.every((l,i)=>Math.hypot(l.to.x-vertices[(i+1)%3].x,l.to.y-vertices[(i+1)%3].y)<1);
+  const area=closed?Math.abs(cross(vertices[0],vertices[1],vertices[2]))/2:0;
+  function inside(p){if(!area)return false;const sides=vertices.map((v,i)=>cross(v,vertices[(i+1)%3],p));return sides.every(v=>v>1)||sides.every(v=>v< -1);}
+  checks=[['مثلث مغلق يتسع للقطة',area>=900],['رسم الأضلاع بالأحمر',closed&&lines.every(l=>l.color<4||l.color>96)],['وقوف القطة داخل المثلث',inside({x:result.x,y:result.y})],['تشغيل صوت داخل المثلث',a.some(e=>e.op==='sound'&&inside(e))]];break;
+ }
  case 'space':case 'football':{const space=id==='space';checks=[['الخلفية',s?.scene===id],['موضع القطة',space?centered:s?.x<-100],['اسم المشروع',named(space?'الفضاء':'كرة القدم')]];break;}
  case 'speak':{const e=say('مرحبا بكم في سكراتش');checks=[['نص الترحيب',!!e],['المدة خمس ثوانٍ',e&&near(e.end-e.start,5000)]];break;}
  case 'bird':checks=[['الحركة ٣٠ خطوة',!!move(30)],['نص الفقاعة',!!say('لنستمع لصوت العصفور')],['تشغيل صوت العصفور',a.some(e=>e.sound==='bird')]];break;

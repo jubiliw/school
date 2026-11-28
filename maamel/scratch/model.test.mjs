@@ -5,6 +5,7 @@ import {run} from './runtime.mjs';
 const flag={op:'flag'},down={op:'down'},up={op:'up'};
 const move=n=>({op:'move',n}),turn=(n,op='cw')=>({op,n}),say=(text,seconds=2)=>({op:'say',text,seconds}),sound=sound=>({op:'sound',sound}),repeat=(n,...body)=>({op:'repeat',n,body});
 const examples={
+ 'red-triangle-center':[{op:'color',n:0},down,repeat(3,move(100),turn(120)),up,turn(30),move(55),sound('cat')],
  space:{title:'الفضاء',scene:'space'},football:{title:'كرة القدم',scene:'football',x:-140},
  speak:[say('مرحبًا بكم في سكراتش',5)],bird:[move(30),say('لنستمع لصوت العصفور'),sound('bird')],greet:[say('السلام عليكم'),move(30)],turn:[turn(40),say('أنا أستدير')],picnic:[say('لنقم بنزهة'),sound('door'),move(200)],loop:[repeat(10,move(5))],
  walk:{title:'قطة تمشي',scene:'grass',x:-150,blocks:[flag,repeat(5,move(10),say('مرحبًا'))]},turns:{title:'كيفية الاستدارة',blocks:[flag,repeat(6,say('سأستدير إلى اليمين'),turn(15),say('سأستدير إلى اليسار'),turn(15,'ccw'))]},

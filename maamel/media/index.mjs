@@ -1,7 +1,7 @@
 import {photoWindow} from './window.mjs';
 import {assets,initial,fresh,edit,mark,save} from './model.mjs';
 import {render} from './art.mjs';
-export function mount(host,state,onChange){
+function mountPhotos(host,state,onChange){
  let s={...initial(),...state},mode='',corner=null;host.replaceChildren();const root=document.createElement('section');host.append(root);root.dir='rtl';root.className='mx-photos';
  root.innerHTML=photoWindow;
  const $=q=>root.querySelector(q),c=$('.mx-stage canvas'),sel=$('select'),note=t=>$('output').textContent=t;
@@ -41,4 +41,20 @@ export function mount(host,state,onChange){
  $('[data-del]').onclick=()=>{if(!s.selected)return;const deleted=[...s.deleted,s.selected];change({...s,deleted,selected:assets.find(a=>!deleted.includes(a.id))?.id||''});options();tools('adjust');trash();note('نُقلت الصورة إلى السلة.');};
  function trash(){const t=$('[data-trash]');t.replaceChildren();for(const id of s.deleted)btn(t,'استعادة '+assets.find(a=>a.id===id).name,()=>{change({...s,selected:id,deleted:s.deleted.filter(x=>x!==id)});trash();options();tools('adjust');});}
  $('[data-bin]').onclick=()=>{trash();if(!s.deleted.length)note('السلة فارغة.');};options();tools('adjust');listCopies();
+}
+
+export function mount(host,previous,onChange,task){
+ let state={...initial(),...previous},disposed=false,epoch=0,cleanup
+ const modes=document.createElement('nav'),work=document.createElement('div')
+ host.replaceChildren(modes,work)
+ function changed(next){state=next;onChange(next)}
+ async function show(story){
+  const ticket=++epoch;cleanup?.();cleanup=null
+  for(const b of modes.children)b.setAttribute('aria-pressed',String(b.dataset.mode===(story?'story':'photos')))
+  if(story){const {mountStory}=await import('./story-editor.mjs');if(disposed||ticket!==epoch)return;cleanup=mountStory(work,state.story,value=>changed({...state,story:value}))}
+  else cleanup=mountPhotos(work,state,changed)
+ }
+ for(const [key,label] of [['photos','مجموعة الصور'],['story','محرر الفيديو']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.mode=key;b.onclick=()=>show(key==='story');modes.append(b)}
+ show(['forest-media','forest-story','gardens-film'].includes(task))
+ return ()=>{disposed=true;epoch++;cleanup?.()}
 }
