@@ -1,6 +1,7 @@
 import {spellingIssues} from './proofing.mjs';
 import {named,result,taskId} from '../office-common/model.mjs';
 export const tasks=[
+ {id:'research-project',title:'مشروع البحث المصوّر',page:97,instructions:'اختر موضوعًا عن السياحة في مدينتك أو توسعة الحرمين أو المنتخب السعودي. اجمع المعلومات واكتبها في مستند. نسّق الفقرات وأدرج صورة ورسمًا توضيحيًا ثم راجع المستند واحفظه. اعرضه على مجموعتك.'},
  {id:'security-proof',title:'تدقيق نص عن أمان الإنترنت',page:94,instructions:'راجع النص التدريبي البديل وصحّح الأخطاء الإملائية والنحوية. استخدم تبويب مراجعة أو حرّر النص مباشرة.'},
  {id:'mosque-proof',title:'مراجعة نص المسجد العائم',page:95,instructions:'افحص النص التدريبي البديل عن المسجد العائم. قارن اقتراحات التصحيح ثم أصلح الأخطاء في مواضعها.'},
  {id:'oil-print',title:'إعداد مستند للطباعة',page:96,instructions:'افتح ملف ← طباعة لمعاينة المستند. اضبط اتجاه الصفحة عموديًا واضبط عدد النسخ بحسب عدد أفراد الفريق. تستطيع فتح نافذة طباعة الجهاز بعد المعاينة.'},
@@ -22,6 +23,11 @@ function normalize(t){return t.trim().replace(/[\u064b-\u065f\u0670]/g,'').repla
 function styled(p,prop,predicate=Boolean){const runs=p?.runs?.filter(r=>r?.text?.trim());return !!runs?.length&&runs.every(r=>predicate(r[prop]));}
 export function grade(state,task){
  const ps=Array.isArray(state?.body?.paragraphs)?state.body.paragraphs:[],lines=ps.map(p=>normalize(plain(p))),text=lines.join(' '),id=taskId(task)||'fruit';
+ if(id==='research-project'){
+  const body=ps.filter(p=>!p.type&&plain(p).trim().length>=18);
+  const drawings=ps.filter(p=>p.type==='diagram');
+  return result([[body.length>=2,'معلومات البحث في فقرتين'],[body.some(p=>p.align||p.border||p.fill||p.runs?.some(r=>r.bold||r.color)),'تنسيق النص'],[ps.some(p=>p.runs?.some(r=>r.kind==='picture'&&r.src?.startsWith('data:image/jpeg;base64,'))),'إدراج صورة'],[drawings.some(d=>d.items?.filter(t=>t.trim()).length>=2),'رسم توضيحي بعناصر معنونة'],[named(state),'حفظ أحدث نسخة']]);
+ }
  if(['security-proof','mosque-proof'].includes(id)){
   const initialText=initial(id).body.paragraphs.map(plain),issues=spellingIssues(initialText);
   return result(issues.map(([wrong,right])=>[text.includes(normalize(right))&&!spellingIssues(ps.map(plain)).some(([error])=>error===wrong),right]));

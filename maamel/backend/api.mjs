@@ -172,7 +172,7 @@ export function createApi({grade,initial,validateLab,isAssigned}){
    await list('SELECT c.id,c.name,c.createdAt FROM classes c JOIN members m ON c.id=m.classId WHERE m.studentId=? ORDER BY c.createdAt DESC',user.id);
   return json({classes});
  }
- const programIds=['windows','word','slides','sheets','scratch','robot','media','ai','web','av','python','html','video'];
+ const programIds=['audacity','windows','word','slides','sheets','scratch','robot','media','ai','web','av','python','html','video'];
  if(method==='GET' && path==='/api/programs'){
   if(user.role!=='student')return json({programs:programIds});
   const rows=await list('SELECT s.programs FROM classes c LEFT JOIN class_settings s ON s.classId=c.id WHERE c.teacherId IN ('+paidOwner+') AND c.id IN (SELECT classId FROM members WHERE studentId=? UNION SELECT classId FROM class_devices WHERE studentId=?)',user.id,user.id);

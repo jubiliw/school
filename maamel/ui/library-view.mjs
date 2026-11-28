@@ -1,9 +1,9 @@
 import {placements,programsFor,gradeNames,termNames} from './course-catalog.mjs';
 export const names={windows:'سطح المكتب · Windows',word:'معالجة النصوص · Word',sheets:'الجداول الإلكترونية · Excel',slides:'العروض التقديمية · PowerPoint',scratch:'البرمجة المرئية · Scratch',robot:'مختبر الروبوت · Open Roberta',web:'متصفح الويب',av:'مسجل الصوت ومشغل الفيديو',media:'محرر الصور',ai:'أداة القصاصة',review:'تقويم الوحدة'};
-Object.assign(names,{python:'محرر Python',html:'محرر HTML',video:'مونتاج الفيديو · Shotcut',av:'مسجل الصوت'});
-const glyph={python:'Py',html:'</>',video:'▷',windows:'▤',word:'Aa',sheets:'ƒx',slides:'▧',scratch:'{ }',robot:'⌁',web:'◎',av:'◖))',media:'◩',ai:'⌗',review:'✓'};
-const desc={python:'كتابة البرامج وتشغيلها في نافذة المخرجات',html:'تحرير صفحات الويب ومعاينتها',video:'ترتيب المقاطع وقصها وتصدير الفيلم',windows:'الملفات والمجلدات وإعدادات الجهاز',word:'تحرير المستند وتنسيق النص والفقرات',sheets:'الخلايا والصيغ والعمليات الحسابية',slides:'تصميم الشرائح وتشغيل العرض',scratch:'اللبنات والأحداث والرسم بالقلم',robot:'برمجة المحركات واختبار المسار',web:'التصفح والبحث عن المعلومات',av:'تسجيل المقاطع وتشغيل الوسائط',media:'تحسين الصور واقتصاصها وحفظها',ai:'تحديد منطقة واستخراج نصها',review:'أسئلة الوحدات والتصحيح الفوري'};
-const color={python:'#34638d',html:'#a74439',video:'#385a7b',windows:'#097e77',word:'#295ab2',sheets:'#23835a',slides:'#ba512e',scratch:'#8a5aaa',robot:'#336888',web:'#1379a3',av:'#925590',media:'#137c7b',ai:'#6b688d',review:'#667250'};
+Object.assign(names,{audacity:'تحرير الصوت · Audacity',python:'محرر Python',html:'محرر HTML',video:'مونتاج الفيديو · Shotcut',av:'مسجل الصوت'});
+const glyph={audacity:'∿',python:'Py',html:'</>',video:'▷',windows:'▤',word:'Aa',sheets:'ƒx',slides:'▧',scratch:'{ }',robot:'⌁',web:'◎',av:'◖))',media:'◩',ai:'⌗',review:'✓'};
+const desc={audacity:'تحرير مسارات الصوت ومزجها وتصديرها',python:'كتابة البرامج وتشغيلها في نافذة المخرجات',html:'تحرير صفحات الويب ومعاينتها',video:'ترتيب المقاطع وقصها وتصدير الفيلم',windows:'الملفات والمجلدات وإعدادات الجهاز',word:'تحرير المستند وتنسيق النص والفقرات',sheets:'الخلايا والصيغ والعمليات الحسابية',slides:'تصميم الشرائح وتشغيل العرض',scratch:'اللبنات والأحداث والرسم بالقلم',robot:'برمجة المحركات واختبار المسار',web:'التصفح والبحث عن المعلومات',av:'تسجيل المقاطع وتشغيل الوسائط',media:'تحسين الصور واقتصاصها وحفظها',ai:'تحديد منطقة واستخراج نصها',review:'أسئلة الوحدات والتصحيح الفوري'};
+const color={audacity:'#425699',python:'#34638d',html:'#a74439',video:'#385a7b',windows:'#097e77',word:'#295ab2',sheets:'#23835a',slides:'#ba512e',scratch:'#8a5aaa',robot:'#336888',web:'#1379a3',av:'#925590',media:'#137c7b',ai:'#6b688d',review:'#667250'};
 function esc(v){const n=document.createElement('span');n.textContent=String(v??'');return n.innerHTML}
 export function desktopPrograms(catalog){
  return [...new Set([...catalog.map(lab=>lab.id),'python','html','video'])].filter(id=>id!=='review' && Object.hasOwn(names,id));
@@ -11,12 +11,12 @@ export function desktopPrograms(catalog){
 const families=[
  ['office','الإنتاجية المكتبية',['word','sheets','slides']],
  ['code','البرمجة والروبوت',['python','html','scratch','robot']],
- ['media','الوسائط والتصميم',['media','video','av','ai']],
+ ['media','الوسائط والتصميم',['media','video','av','audacity','ai']],
  ['system','النظام والويب',['windows','web']]
 ];
-const appTitles={word:'معالج النصوص',sheets:'الجداول الإلكترونية',slides:'العروض التقديمية',windows:'سطح المكتب',python:'محرر بايثون',html:'محرر الويب',scratch:'البرمجة المرئية',robot:'مختبر الروبوت',media:'محرر الصور',video:'مونتاج الفيديو',av:'مسجل الصوت',ai:'أداة القصاصة',web:'المتصفح'};
-const english={word:'Word',sheets:'Excel',slides:'PowerPoint',windows:'Windows',python:'Python',html:'HTML',scratch:'Scratch',robot:'Open Roberta',media:'Photo Editor',video:'Shotcut',av:'Audio Recorder',ai:'Snipping Tool',web:'Web Browser'};
-const strokes={
+const appTitles={audacity:'محرر الصوت',word:'معالج النصوص',sheets:'الجداول الإلكترونية',slides:'العروض التقديمية',windows:'سطح المكتب',python:'محرر بايثون',html:'محرر الويب',scratch:'البرمجة المرئية',robot:'مختبر الروبوت',media:'محرر الصور',video:'مونتاج الفيديو',av:'مسجل الصوت',ai:'أداة القصاصة',web:'المتصفح'};
+const english={audacity:'Audacity',word:'Word',sheets:'Excel',slides:'PowerPoint',windows:'Windows',python:'Python',html:'HTML',scratch:'Scratch',robot:'Open Roberta',media:'Photo Editor',video:'Shotcut',av:'Audio Recorder',ai:'Snipping Tool',web:'Web Browser'};
+const strokes={audacity:'M2 14h4l2-9 4 17 4-18 3 16 2-6h5',
  word:'M7 3h10l5 5v17H7z M16 3v6h6 M10 13h9 M10 17h9 M10 21h6',
  sheets:'M3 5h22v19H3z M3 11h22 M3 17h22 M10 11v13 M17 11v13',
  slides:'M3 4h22v15H3z M14 19v5 M8 26l6-3 6 3 M8 15v-4 M13 15V8 M18 15v-6',
@@ -36,7 +36,7 @@ function hero(guest,teacher,featured){
  return '<section class="portal-hero"><div class="hero-text"><h1>'+(guest?'معملك الرقمي،<br><em>بين يديك.</em>':'معامل الحاسب')+'</h1><p>'+(guest?'جرّب برامج الحاسب وطبّق دروسك من المدرسة أو البيت.':'اختر معملك وابدأ تطبيق مهاراتك.')+'</p><div class="hero-actions"><a class="main-action" href="'+(guest?'#student':'#dashboard')+'">'+(guest?'دخول الطالب':teacher?'فصولي':'واجباتي')+'</a><a class="browse-action" href="#programs">استكشف المعامل</a></div></div><div class="live-scene"><div class="scene-stage"><div class="scene-shadow"></div><div class="scene-model">'+art+'</div></div>'+(buttons?'<div class="preview-dock" role="group" aria-label="معاينة البرامج">'+buttons+'</div>':'')+'</div></section>';
 }
 export function showLibrary(main,catalog,allowed=desktopPrograms(catalog),guestEntry=false,teacher=false){
- const order=['word','sheets','slides','python','windows','html','scratch','media','video','robot','av','web','ai'];
+ const order=['word','sheets','slides','python','windows','html','scratch','media','video','robot','av','audacity','web','ai'];
  const programs=order.filter(id=>allowed.includes(id));
  const groups=families.filter(([, ,ids])=>ids.some(id=>programs.includes(id)));
  const featured=['word','sheets','python'].filter(id=>programs.includes(id));
