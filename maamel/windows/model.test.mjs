@@ -72,3 +72,22 @@ test('copy in same directory preserves filename extension and trashing wallpaper
  const c=f.op({type:'copy',id,parent:'desktop'});assert.equal(f.state.nodes.find(n=>n.id===c).name,'ملف (2).png')
  f.op({type:'settings',settings:{background:id}});f.op({type:'trash',id});assert.equal(f.state.settings.background,'jade')
 })
+test('grade 5 picture shortcuts survive reopening and go to the bin independently of their targets',()=>{
+ const task='picture-shortcuts'
+ let state=initial(task)
+ assert.equal(grade(state,task).score,0)
+ for(const parent of ['pictures','desktop']){
+   for(const id of ['bird','fish']){
+     state=apply(state,{type:'shortcut',id,parent})
+     const link=state.nodes.at(-1)
+     assert.equal(link.target,id)
+     state=apply(state,{type:'trash',id:link.id})
+   }
+   state=JSON.parse(JSON.stringify(state))
+   assert.equal(valid(state),true)
+   if(parent==='pictures')assert.equal(grade(state,task).score,33)
+ }
+ assert.equal(grade(state,task).score,100)
+ state=apply(state,{type:'trash',id:'bird'})
+ assert.ok(grade(state,task).score<100)
+})

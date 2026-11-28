@@ -1,0 +1,9 @@
+{
+  "grade": 5,
+  "lessons": [
+    {"term": 1, "unit": "تعلم الأساسيات", "lesson": "الملفات والمجلدات", "start": 39, "end": 54}
+  ],
+  "activities": [
+    {"program": "windows", "task": "picture-shortcuts", "page": 48}
+  ]
+}

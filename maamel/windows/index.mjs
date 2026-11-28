@@ -6,7 +6,7 @@ const h=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined
 const btn=(label,fn,cls)=>{const e=h('button',label,cls);e.type='button';e.onclick=fn;return e}
 const apps={explorer:'مستكشف الملفات',paint:'الرسام',settings:'الإعدادات',calc:'الحاسبة',help:'تعليمات سطح المكتب',alarm:'المنبه',practice:'نشاط التصنيف'}
 const roots=['desktop','docs','bin']
-const icons={folder:'📁',text:'📄',image:'🖼️',drawing:'🎨'}
+const icons={folder:'📁',text:'📄',image:'🖼️',drawing:'🎨',shortcut:'↗️'}
 const theme={jade:'radial-gradient(ellipse at 29% 35%,#1590af,transparent 55%),linear-gradient(118deg,#073b68,#096a94 65%,#06486b)',blue:'linear-gradient(135deg,#bad8f5,#5281ac)',dune:'linear-gradient(135deg,#f0dcc1,#c69671)'}
 function paintCanvas(canvas,strokes){
   const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height)
@@ -23,7 +23,7 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
   const status=h('div','','wm-status');status.setAttribute('role','status')
   const bench=h('div',undefined,'wm-bench'),bar=h('div',undefined,'wm-bar')
   desk.append(bench,bar,status);host.append(link,desk)
-  let state=valid(previous)?structuredClone(previous):initial(),app='explorer',dir='docs',selected='',clip=null,start=false,menu=null,modal=null,minimized=false,maximized=false
+  let state=valid(previous)?structuredClone(previous):initial(taskId),app='explorer',dir='docs',selected='',clip=null,start=false,menu=null,modal=null,minimized=false,maximized=false
   let drawing=[],drawId='',color='#197060',calcValue='0',operand=null,operator=null,fresh=true
   if(['hardware','filetypes'].includes(taskId))app='practice'
   if(taskId==='alarm')app='alarm'
@@ -63,6 +63,11 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
   function openFile(id){
     const n=lookup(id);if(!n)return
     if(dir==='bin'){selected=id;take('restore');return}
+    if(n.kind==='shortcut'){
+      const target=lookup(n.target)
+      if(!target||target.kind==='shortcut'||pathOf(state,target.id).split(' / ')[0]===lookup('bin').name)return report('تعذر فتح الاختصار لأن العنصر الأصلي غير متاح.')
+      return openFile(target.id)
+    }
     if(n.kind==='folder')return openDir(id)
     if(drive?.documentOf(n)){location.hash='lab/word/'+encodeURIComponent(n.id);return}
     if(n.kind==='drawing'){drawId=id;drawing=structuredClone(n.strokes);return launch('paint')}
@@ -75,10 +80,13 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
   function buttons(items,container){
     for(const [label,fn,disabled] of items){const b=btn(label,fn);b.disabled=!!disabled;container.append(b)}
   }
+  function shortcut(parent){
+    if(commit({type:'shortcut',id:selected,parent})){render();report('تم إنشاء الاختصار.')}
+  }
   function cmds(){
     const gone=dir==='bin',none=!selected
     if(gone)return [['استعادة',()=>take('restore'),none]]
-    return [['مجلد جديد',()=>create('folder')],['ملف نصي',()=>create('text')],['فتح',()=>openFile(selected),none],['إعادة تسمية',rename,none],['قص',()=>clipboard('move'),none],['نسخ',()=>clipboard('copy'),none],['لصق',paste,!clip],['حذف',()=>take('trash'),none]]
+    return [['مجلد جديد',()=>create('folder')],['ملف نصي',()=>create('text')],['فتح',()=>openFile(selected),none],['إعادة تسمية',rename,none],['قص',()=>clipboard('move'),none],['نسخ',()=>clipboard('copy'),none],['لصق',paste,!clip],['إنشاء اختصار',()=>shortcut(dir),none],['إرسال إلى سطح المكتب (إنشاء اختصار)',()=>shortcut('desktop'),none],['حذف',()=>take('trash'),none]]
   }
   function popup(e,items){
     e.preventDefault();closeMenu();const panel=h('div',undefined,'wm-context');menu=panel;panel.setAttribute('role','menu')

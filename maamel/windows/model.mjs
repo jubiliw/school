@@ -12,6 +12,7 @@ const prompts = {
   project:'أنشئ على سطح المكتب المستندات والصور ومقاطع الفيديو. داخل كل منها أنشئ مجلدين باسم المعلمين والطلبة. ارسم أجزاء الحاسب واحفظ الرسم واستخدمه خلفية.'
 }
 export const tasks = [
+  {id:'picture-shortcuts',title:'إنشاء اختصارات للصور',page:'٤٨',instructions:'افتح مجلد الصور في المستندات. اختر صورتين وأنشئ لكل منهما اختصارًا بجوارها وآخر على سطح المكتب. افتح أحد الاختصارات ثم احذف الاختصارات الأربعة وتحقق من بقاء الصورتين.'},
   {id:'hardware',title:'مكونات الحاسب واستخداماتها',page:'١٨–١٩',instructions:'افتح نشاط التصنيف. صنّف الأجهزة ثم اختر الأداة المناسبة لكل استخدام.'},
   {id:'filetypes',title:'الملفات والمجلدات والبرامج',page:'٢٩–٣٠',instructions:'افتح نشاط التصنيف. ميّز بين أنواع العناصر ثم تحقق من صلاحية أسماء المجلدات.'},
   {id:'display',title:'إعدادات جهاز الحاسب',page:'٣٤–٣٨',instructions:'اضبط دقة الشاشة الافتراضية إلى 1920×1200 واحتفظ بها، ثم اختر خلفية جديدة وجرّب تعديل مستوى الصوت.'},
@@ -24,7 +25,8 @@ const folder=(id,parent,name)=>({id,parent,name,kind:'folder'})
 export function initial(task='animals'){
   return {version:1,task:tasks.some(t=>t.id===task)?task:'animals',answers:{},nodes:[
     folder('desktop',null,'سطح المكتب'),folder('docs',null,'المستندات'),folder('bin',null,'سلة المحذوفات'),
-    ...(task==='free'?[]:[folder('samples','docs',animalFolder),
+    ...(task==='picture-shortcuts'?[folder('pictures','docs','الصور'),
+      ...animals.map(a=>({id:a.id,parent:'pictures',name:a.name+'.png',kind:'image',asset:a.id}))]:task==='free'?[]:[folder('samples','docs',animalFolder),
     ...animals.map((a,i)=>({id:a.id,parent:'samples',kind:'image',name:'صورة '+(i+1)+'.png',asset:a.id}))])
   ],settings:{background:'jade',resolution:'1280×800',volume:60,clockOffset:0}}
 }
@@ -57,7 +59,7 @@ export function valid(s){
   const index=new Map(),names=new Set(),rootOf=new Map()
   try{
     for(const n of s.nodes){
-      if(!n||typeof n.id!=='string'||!n.id||n.id.length>100||index.has(n.id)||!['folder','text','image','drawing'].includes(n.kind))return false
+      if(!n||typeof n.id!=='string'||!n.id||n.id.length>100||index.has(n.id)||!['folder','text','image','drawing','shortcut'].includes(n.kind))return false
       index.set(n.id,n)
     }
     for(const root of core){
@@ -79,6 +81,7 @@ export function valid(s){
       const nameKey=JSON.stringify([n.parent,key(n.name)])
       if(n.parent!=='bin'&&names.has(nameKey))return false
       names.add(nameKey)
+      if(n.kind==='shortcut'&&(typeof n.target!=='string'||!n.target||n.target.length>100||index.get(n.target)?.kind==='shortcut'))return false
       if(n.kind==='text'&&(typeof n.content!=='string'||n.content.length>50000))return false
       if(n.kind==='image'&&!animals.some(a=>n.asset===a.id))return false
       if(n.kind==='drawing'&&(!Array.isArray(n.strokes)||n.strokes.length>500||!n.strokes.every(st=>st&&/^#[0-9a-f]{6}$/i.test(st.color)&&Array.isArray(st.points)&&st.points.length>0&&st.points.length<=1000&&st.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(v=>Number.isFinite(v)&&v>=0&&v<=1)))))return false
@@ -107,7 +110,12 @@ export function apply(state,op){
   }else{
     if(!n||core.has(n.id))err('اختر ملفًا أو مجلدًا.')
     if(ancestors(s,n.id).includes('bin')&&type!=='restore')err('استعد العنصر أولًا.')
-    if(type==='rename'){unique(s,n.parent,op.name,n.id);n.name=op.name}
+    if(type==='shortcut'){
+      const parent=op.parent??n.parent
+      dest(s,parent)
+      const target=n.kind==='shortcut'?n.target:n.id
+      s.nodes.push({id:generate(),parent,target,kind:'shortcut',name:copyName(s,parent,n.name+' - اختصار')})
+    }else if(type==='rename'){unique(s,n.parent,op.name,n.id);n.name=op.name}
     else if(type==='write'&&n.kind==='text')n.content=op.content
     else if(type==='draw'&&n.kind==='drawing')n.strokes=op.strokes
     else if(type==='trash'){n.originalParent=n.parent;n.parent='bin'}
@@ -139,6 +147,15 @@ export function grade(state,task='animals'){
   const sub=(id,name)=>children(s,id).find(n=>n.kind==='folder'&&norm(n.name)===norm(name))?.id
   if(exercises[task]&&Array.isArray(exercises[task])){
     for(const q of exercises[task])add(q.label,s.answers?.[q.id]===q.answer)
+  }else if(task==='picture-shortcuts'){
+    const removed=children(s,'bin').filter(n=>n.kind==='shortcut')
+    const targets=animals.map(a=>a.id)
+    for(const [location,label] of [['pictures','مجلد الصور'],['desktop','سطح المكتب']]){
+      const count=new Set(removed.filter(n=>n.originalParent===location&&targets.includes(n.target)).map(n=>n.target)).size
+      add('حذف اختصارين لصورتين مختلفتين من '+label,count>=2)
+    }
+    const both=targets.filter(id=>['pictures','desktop'].every(parent=>removed.some(n=>n.target===id&&n.originalParent===parent)))
+    add('بقاء الصورتين الأصليتين بعد حذف اختصاراتهما',both.filter(id=>node(s,id)?.parent==='pictures').length>=2)
   }else if(task==='display'){
     add('الاحتفاظ بدقة 1920×1200',s.settings.resolution==='1920×1200')
     add('تغيير الخلفية',s.settings.background!=='jade')
