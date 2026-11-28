@@ -272,6 +272,16 @@
       "program": "scratch",
       "task": "space-dialog",
       "page": 216
+    },
+    {
+      "program": "review",
+      "task": "broadcast-messages",
+      "page": 214
+    },
+    {
+      "program": "review",
+      "task": "broadcast-events",
+      "page": 215
     }
   ]
 }
