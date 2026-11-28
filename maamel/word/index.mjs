@@ -1,3 +1,6 @@
+import {spellingIssues} from './proofing.mjs';
+import {layouts,diagramElement,readDiagram} from './diagram.mjs';
+import {pictureElement,readPicture,pictureFromFile} from './picture.mjs';
 import {newTable,changeTable} from './table.mjs';
 import {el,button,command,field,group,select,shell} from '../office-common/ui.mjs';
 import {initial,plain} from './model.mjs';
@@ -7,13 +10,16 @@ function paraStyle(n,p){n.style.textAlign=['left','right','center','justify'].in
 function writeDoc(doc,ps){
  doc.replaceChildren();let list=null;
  for(const p of ps){
+  if(p.type==='diagram'){list=null;doc.append(diagramElement(p));continue;}
   if(p.type==='table'){list=null;doc.append(renderTable(p));continue;}
   const numbered=['ol','ul'].includes(p.list);if(!numbered||list?.tagName.toLowerCase()!==p.list)list=null;
   if(numbered&&!list){list=el(p.list);doc.append(list);}
   const n=el(numbered?'li':'p');paraStyle(n,p);
-  for(const run of p.runs||[]){const s=el('span',run.text);s.style.fontWeight=run.bold?'bold':'';s.style.fontStyle=run.italic?'italic':'';s.style.textDecoration=run.underline?'underline':'';
+  for(const run of p.runs||[]){
+   if(run.kind==='picture'){const image=pictureElement(run);if(image)n.append(image);continue;}
+   const s=el('span',run.text);s.style.fontWeight=run.bold?'bold':'';s.style.fontStyle=run.italic?'italic':'';s.style.textDecoration=run.underline?'underline':'';
    s.style.color=safeColor(run.color);s.style.backgroundColor=safeColor(run.highlight);if(run.font)s.style.fontFamily=String(run.font).slice(0,64);if(run.size)s.style.fontSize=Math.min(80,Math.max(8,Number(run.size)))+'pt';n.append(s);}
-  if(!n.textContent)n.append(el('br'));(list||doc).append(n);
+  if(!n.childNodes.length)n.append(el('br'));(list||doc).append(n);
  }
 }
 function renderTable(model){
@@ -30,6 +36,8 @@ function readDoc(doc){
  function walk(n,style={},list=null){
   if(n.nodeType===3){if(!p)begin(null,list);if(n.nodeValue)p.runs.push({text:n.nodeValue,...style});return;}
   if(n.nodeType!==1)return;const tag=n.tagName.toLowerCase(),css=n.style;
+  if(tag==='figure'&&n.dataset.diagram){ps.push(readDiagram(n));p=null;return;}
+  if(tag==='img'){const run=readPicture(n);if(run){if(!p)begin(null,list);p.runs.push(run);}return;}
   if(tag==='table'){ps.push(readTable(n));p=null;return;}
   if(tag==='br') {if(n.nextSibling)begin(null,list);return;}
   if(['ol','ul'].includes(tag)){p=null;for(const child of n.childNodes)walk(child,style,tag);p=null;return;}
@@ -61,6 +69,39 @@ export function mount(host,input,onChange,task,drive){
  function activeCell(){
   const node=savedRange?.startContainer,cell=(node?.nodeType===1?node:node?.parentElement)?.closest('td');
   return cell&&doc.contains(cell)?cell:null;
+ }
+ let selectedImage=null;
+ function choosePicture(){
+  const input=el('input');input.type='file';input.accept='image/png,image/jpeg,image/webp,image/gif';
+  const target=doc;
+  input.onchange=async()=>{
+   if(!input.files.length)return;
+   try{
+    const run=await pictureFromFile(input.files[0]);
+    if(doc!==target||!doc.isConnected)return;
+    if(new Blob([JSON.stringify(state)]).size+2*run.src.length>500000)throw Error('لا توجد مساحة كافية في المستند لهذه الصورة.');
+    exec('insertHTML',pictureElement(run).outerHTML);
+   }catch(error){ui.notify(error.message);}
+  };input.click();
+ }
+ function pictureStyle(property,value){
+  if(!selectedImage||!doc.contains(selectedImage))return ui.notify('اضغط على الصورة في المستند أولًا.');
+  if(property==='width')selectedImage.width=Number(value);else selectedImage.style.float=value;
+  sync();
+ }
+ function diagramEditor(){
+  const node=savedRange?.startContainer;
+  const existing=(node?.nodeType===1?node:node?.parentElement)?.closest('figure[data-diagram]');
+  const model=existing&&doc.contains(existing)?readDiagram(existing):{layout:'list',color:'#bee6db',items:[]};
+  const layout=select('نوع الرسم',Object.entries(layouts),()=>{}),labels=el('textarea'),shade=el('input');
+  layout.value=model.layout;labels.value=model.items.join('\n');labels.rows=5;shade.type='color';shade.value=model.color;
+  ui.dialog('رسم توضيحي',[field('التخطيط',layout),field('النص، عنصر في كل سطر',labels),field('لون الرسم',shade)],[['موافق',()=>{
+    const items=labels.value.split('\n').map(t=>t.trim().slice(0,500)).filter(Boolean);
+    if(!items.length||items.length>24){ui.notify('أدخل بين عنصر واحد و٢٤ عنصرًا.');return false;}
+    const figure=diagramElement({layout:layout.value,color:shade.value,items});
+    if(existing&&doc.contains(existing)){existing.replaceWith(figure);sync();}
+    else setTimeout(()=>exec('insertHTML',figure.outerHTML+'<p><br></p>'),0);
+  }]]);
  }
  function insertTable(){
   const rows=el('input'),cols=el('input');
@@ -144,11 +185,50 @@ export function mount(host,input,onChange,task,drive){
   }
   ui.ribbon.append(group('إعداد الصفحة',setting('اتجاه الصفحة','orientation',[['portrait','عمودي'],['landscape','أفقي']],'portrait'),setting('الهوامش','margin',[['narrow','ضيقة'],['normal','عادية'],['wide','واسعة']],'normal')));
  }
- function render(){clearMarks();savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('جداول',button('جدول',insertTable)),group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))],['أدوات الجدول',tableTools],['تخطيط',pageLayout]]);
+ function proof(){
+  const panel=el('div');
+  function list(){
+   panel.replaceChildren();
+   for(const [error,replacement] of spellingIssues(state.body.paragraphs.map(plain))){
+    panel.append(button(error+' ← '+replacement,()=>{
+     const walker=document.createTreeWalker(doc,NodeFilter.SHOW_TEXT);let node;
+     while(node=walker.nextNode()){
+      const pos=node.data.search(new RegExp('(?<![\\p{L}])'+error+'(?![\\p{L}])','u'));if(pos<0)continue;
+      const range=document.createRange();range.setStart(node,pos);range.setEnd(node,pos+error.length);
+      range.deleteContents();range.insertNode(document.createTextNode(replacement));sync();break;
+     }
+     list();
+    }));
+   }
+   if(!panel.children.length)panel.append(el('p','اكتملت مراجعة مفردات التدريب.'));
+  }
+  list();ui.dialog('تدقيق المستند',[panel],[]);
+ }
+ function printPreview(){
+  const preview=doc.cloneNode(true);preview.contentEditable='false';preview.removeAttribute('role');preview.style.cssText='background:white;color:#172332;padding:1rem;max-height:45vh;overflow:auto';
+  const orientation=select('اتجاه الصفحة',[['portrait','عمودي'],['landscape','أفقي']],()=>update());
+  orientation.value=state.body.page?.orientation||'portrait';
+  const copies=el('input');copies.type='number';copies.min=1;copies.max=99;copies.value=state.body.print?.copies||1;
+  function update(){preview.style.aspectRatio=orientation.value==='portrait'?'210 / 297':'297 / 210';}
+  function settings(){
+   if(!copies.reportValidity()||!Number.isInteger(copies.valueAsNumber))return false;
+   (state.body.page||={}).orientation=orientation.value;state.body.print={copies:copies.valueAsNumber};applyPage();ui.touch();return true;
+  }
+  update();
+  ui.dialog('معاينة الطباعة',[field('الاتجاه',orientation),field('عدد النسخ',copies),preview],[['حفظ إعدادات الطباعة',settings],['طباعة على الجهاز',()=>{
+   if(!settings())return false;
+   const page=window.open('','_blank');if(!page){ui.notify('اسمح بفتح نافذة الطباعة.');return false;}
+   page.opener=null;page.document.title=state.name||'مستند معامل';page.document.documentElement.dir='rtl';
+   const style=page.document.createElement('style');style.textContent='@page{size:A4 '+orientation.value+'}body{font:14pt/1.65 Arial}table{border-collapse:collapse}td{border:1px solid;padding:.3rem}img{max-width:100%}';
+   page.document.head.append(style);const copy=preview.cloneNode(true);copy.style.cssText='';page.document.body.append(copy);
+   Promise.allSettled([...copy.querySelectorAll('img')].map(image=>image.decode())).then(()=>page.print());
+  }]]);
+ }
+ function render(){ui.fileActions=[['طباعة',printPreview]];clearMarks();savedRange=null;ui.work.replaceChildren();ui.tabset([['الصفحة الرئيسية',home],['إدراج',()=>ui.ribbon.append(group('رسومات توضيحية',button('SmartArt',diagramEditor)),group('صور',button('صورة من هذا الجهاز',choosePicture)),group('جداول',button('جدول',insertTable)),group('الرموز',...['★','✓','©','♥','←','•'].map(s=>button(s,()=>exec('insertText',s)))))],['تنسيق الصورة',()=>ui.ribbon.append(group('حجم الصورة',select('العرض',[['80','صغير'],['180','متوسط'],['320','كبير']],v=>pictureStyle('width',v))),group('التفاف النص',select('موضع الصورة',[['none','ضمن السطر'],['right','إلى اليمين'],['left','إلى اليسار']],v=>pictureStyle('wrap',v))))],['أدوات الجدول',tableTools],['تخطيط',pageLayout],['مراجعة',()=>ui.ribbon.append(group('تدقيق',button('تدقيق المستند',proof)))]]);
   doc=el('article',null,'paper');doc.contentEditable='true';doc.setAttribute('role','textbox');doc.setAttribute('aria-label','صفحة المستند');doc.setAttribute('aria-multiline','true');doc.dir='auto';doc.style.cssText='min-height:410px;max-width:780px;outline-color:#258576;white-space:pre-wrap;overflow-wrap:anywhere;font:14pt/1.65 Arial,sans-serif';applyPage();writeDoc(doc,state.body.paragraphs);doc.oninput=sync;
   doc.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();capture();find();}});
   doc.onpaste=e=>{e.preventDefault();exec('insertText',(e.clipboardData?.getData('text/plain')||'').slice(0,50000));};doc.ondrop=e=>e.preventDefault();
-  doc.onkeyup=capture;doc.onpointerup=capture;doc.onfocusout=capture;ui.ribbon.onpointerdown=e=>{capture();if(e.target.tagName==='BUTTON')e.preventDefault();};
+  doc.onkeyup=capture;doc.onpointerup=e=>{if(e.target.tagName==='IMG')selectedImage=e.target;capture();};doc.onfocusout=capture;ui.ribbon.onpointerdown=e=>{capture();if(e.target.tagName==='BUTTON')e.preventDefault();};
   words=el('span',state.body.paragraphs.map(plain).join(' ').trim().split(/\s+/).filter(Boolean).length+' كلمة');const zoomer=el('input');zoomer.type='range';zoomer.min=75;zoomer.max=150;zoomer.step=5;zoomer.value=zoom;zoomer.oninput=()=>{zoom=+zoomer.value;doc.style.zoom=zoom+'%';};const ruler=el('div',null,'ruler');ruler.setAttribute('aria-hidden','true');for(let n=0;n<16;n++)ruler.append(el('span',String(n)));
   const foot=el('div',null,'ostatus wordfoot');foot.append(el('span','الصفحة ١'),words,field('تكبير العرض',zoomer));const quick=el('div',null,'word-touchbar');
   const toggle=button('أدوات إضافية',()=>{const open=ui.r.classList.toggle('expanded-tools');toggle.setAttribute('aria-expanded',String(open));});

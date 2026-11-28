@@ -1,4 +1,5 @@
-import {raceRoutes} from './model.mjs'
+import {packEntry,unpackEntry} from './archive.mjs'
+import {raceRoutes,projectImages} from './model.mjs'
 import {exercises} from './exercises.mjs'
 import {animals, apply, children, initial, pathOf, valid} from './model.mjs'
 
@@ -7,7 +8,7 @@ const h=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined
 const btn=(label,fn,cls)=>{const e=h('button',label,cls);e.type='button';e.onclick=fn;return e}
 const apps={explorer:'مستكشف الملفات',paint:'الرسام',settings:'الإعدادات',calc:'الحاسبة',help:'تعليمات سطح المكتب',alarm:'المنبه',practice:'نشاط التصنيف'}
 const roots=['desktop','docs','bin']
-const icons={folder:'📁',text:'📄',image:'🖼️',drawing:'🎨',shortcut:'↗️'}
+const icons={folder:'📁',text:'📄',image:'🖼️',drawing:'🎨',shortcut:'↗️',archive:'🗜️'}
 const theme={jade:'radial-gradient(ellipse at 29% 35%,#1590af,transparent 55%),linear-gradient(118deg,#073b68,#096a94 65%,#06486b)',blue:'linear-gradient(135deg,#bad8f5,#5281ac)',dune:'linear-gradient(135deg,#f0dcc1,#c69671)'}
 function paintCanvas(canvas,strokes){
   const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height)
@@ -71,6 +72,7 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
       return openFile(target.id,id)
     }
     if(n.kind==='folder')return openDir(id)
+    if(n.kind==='archive')return showArchive(n)
     if(taskId==='shortcut-race'&&id==='timing-file'&&raceStarted!==null){
       const elapsed=Math.max(1,Math.round(performance.now()-raceStarted))
       if(commit({type:'race-open',id:via,elapsed})){
@@ -80,7 +82,7 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
     if(drive?.documentOf(n)){location.hash='lab/word/'+encodeURIComponent(n.id);return}
     if(n.kind==='drawing'){drawId=id;drawing=structuredClone(n.strokes);return launch('paint')}
     if(n.kind==='image'){
-      const a=animals.find(v=>v.id===n.asset)
+      const a=animals.find(v=>v.id===n.asset)??projectImages[n.asset]
       return dialog(n.name,(f,dismiss)=>{const pic=h('div',a.symbol,'wm-picture');pic.setAttribute('role','img');pic.setAttribute('aria-label',a.name);f.append(pic,h('p',a.name),dismiss);dismiss.textContent='إغلاق'})
     }
     dialog(n.name,(f,dismiss)=>{const area=h('textarea');area.maxLength=50000;area.value=n.content;area.setAttribute('aria-label','محتوى الملف');f.append(area,btn('حفظ',()=>{if(commit({type:'write',id,content:area.value})){closeModal();report('حُفظ الملف.')}}),dismiss)})
@@ -91,10 +93,50 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
   function shortcut(parent){
     if(commit({type:'shortcut',id:selected,parent})){render();report('تم إنشاء الاختصار.')}
   }
+  async function compress(id){
+    const root=lookup(id)
+    if(!root)return
+    const entries=[]
+    async function visit(item,parent){
+      if(item.kind==='archive')throw Error('لا يدعم المعمل ضغط أرشيف داخل آخر.')
+      entries.push(await packEntry(item,parent))
+      for(const child of children(snapshot,item.id))await visit(child,item.id)
+    }
+    const snapshot=state
+    try{
+      await visit(root,null)
+      if(state!==snapshot)return report('تغيرت الملفات أثناء الضغط. أعد المحاولة.')
+      if(commit({type:'compress',id,entries})){render();report('أُنشئ المجلد المضغوط.')}
+    }catch(error){report(error.message)}
+  }
+  function showArchive(n){
+    dialog(n.name,(form,dismiss)=>{
+      const destination=h('select')
+      destination.setAttribute('aria-label','مجلد الاستخراج')
+      for(const folder of state.nodes.filter(v=>v.kind==='folder'&&v.id!=='bin'&&!pathOf(state,v.id).startsWith(lookup('bin').name+' / '))){
+        const option=h('option',pathOf(state,folder.id));option.value=folder.id;destination.append(option)
+      }
+      destination.value=n.parent
+      form.append(h('label','استخراج إلى'),destination)
+      async function extract(entries){
+        try{
+          const items=[]
+          for(const entry of entries)items.push({id:entry.id,file:await unpackEntry(entry)})
+          if(commit({type:'extract',id:n.id,parent:destination.value,items})){closeModal();render();report('اكتمل الاستخراج.')}
+        }catch(error){report(error.message)}
+      }
+      for(const entry of n.entries){
+        const row=h('p',entry.name+' · '+entry.raw+' بايت ← '+entry.packed+' بايت')
+        if(entry.kind!=='folder')row.append(btn('استخراج هذا الملف',()=>extract([entry])))
+        form.append(row)
+      }
+      form.append(btn('استخراج الكل',()=>extract(n.entries)),dismiss)
+    })
+  }
   function cmds(){
     const gone=dir==='bin',none=!selected
-    if(gone)return [['استعادة',()=>take('restore'),none]]
-    return [['مجلد جديد',()=>create('folder')],['ملف نصي',()=>create('text')],['فتح',()=>openFile(selected),none],['إعادة تسمية',rename,none],['قص',()=>clipboard('move'),none],['نسخ',()=>clipboard('copy'),none],['لصق',paste,!clip],['إنشاء اختصار',()=>shortcut(dir),none],['إرسال إلى سطح المكتب (إنشاء اختصار)',()=>shortcut('desktop'),none],['حذف',()=>take('trash'),none]]
+    if(gone)return [['استعادة',()=>take('restore'),none],['حذف نهائي',()=>dialog('حذف العنصر نهائيًا من سلة المعمل؟',(form,cancel)=>form.append(btn('تأكيد الحذف',()=>{if(commit({type:'purge',id:selected})){selected='';closeModal();render()}}),cancel)),none]]
+    return [['مجلد جديد',()=>create('folder')],['ملف نصي',()=>create('text')],['فتح',()=>openFile(selected),none],['ضغط إلى مجلد مضغوط',()=>compress(selected),none||lookup(selected)?.kind==='archive'],['إعادة تسمية',rename,none],['قص',()=>clipboard('move'),none],['نسخ',()=>clipboard('copy'),none],['لصق',paste,!clip],['إنشاء اختصار',()=>shortcut(dir),none],['إرسال إلى سطح المكتب (إنشاء اختصار)',()=>shortcut('desktop'),none],['حذف',()=>take('trash'),none]]
   }
   function popup(e,items){
     e.preventDefault();closeMenu();const panel=h('div',undefined,'wm-context');menu=panel;panel.setAttribute('role','menu')

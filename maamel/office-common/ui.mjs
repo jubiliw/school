@@ -46,8 +46,9 @@ export function shell(host, title, state, change, fresh, render, drive) {
   function newFile(){dialog('إنشاء ملف جديد',[el('p','احفظ تعديلات الملف الحالي إذا أردت الرجوع إليها.')],[['إنشاء',()=>{state.name='';state.fileId=null;state.folder='docs';state.body=fresh().body;touch();render();notify('ملف جديد');}]]);}
   top.append(heading,button('حفظ',()=>save()),button('فتح',open));heading.textContent=title+' · '+(state.name||'بدون اسم');
   r.append(top,tabs,ribbon,work,status);r.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();save();}});
-  function tabset(items){tabs.replaceChildren();for(const [name,fn] of [['ملف',()=>ribbon.replaceChildren(group('إدارة الملف',button('جديد',newFile),button('فتح',open),button('حفظ',()=>save()),button('حفظ باسم',()=>save(true))))],...items]){
+  const api={r,work,ribbon,tabs,top,notify,touch,dialog,tabset,fileActions:[]};
+  function tabset(items){tabs.replaceChildren();for(const [name,fn] of [['ملف',()=>ribbon.replaceChildren(group('إدارة الملف',button('جديد',newFile),button('فتح',open),button('حفظ',()=>save()),button('حفظ باسم',()=>save(true)),...api.fileActions.map(([title,fn])=>button(title,fn))))],...items]){
     const b=button(name,()=>{for(const t of tabs.children)t.setAttribute('aria-pressed','false');b.setAttribute('aria-pressed','true');ribbon.replaceChildren();fn();});tabs.append(b);}
     tabs.children[1]?.click();}
-  return {r,work,ribbon,tabs,top,notify,touch,dialog,tabset};
+  return api;
 }

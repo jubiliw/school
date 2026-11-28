@@ -110,3 +110,22 @@ test('timed routes require the moved original and links in the two textbook loca
  assert.deepEqual(s.timings,{direct:900,folder:600,desktop:600})
  assert.equal(grade(JSON.parse(JSON.stringify(s)),task).score,100)
 })
+test('project archive preserves an independent extractable image after deleting the source',async()=>{
+ const {packEntry,unpackEntry}=await import('./archive.mjs')
+ const task='green-project'
+ let state=initial(task)
+ const run=op=>{state=apply(state,op)}
+ run({type:'create',parent:'docs',kind:'folder',name:'مشروع'})
+ const folder=state.nodes.at(-1)
+ for(const id of ['trees','park','plan','species'])run({type:'move',id,parent:folder.id})
+ const files=children(state,folder.id)
+ const entries=[await packEntry(folder,null),...await Promise.all(files.map(file=>packEntry(file,folder.id)))]
+ run({type:'compress',id:folder.id,entries});const zip=state.nodes.at(-1).id
+ run({type:'trash',id:folder.id});run({type:'purge',id:folder.id})
+ state=JSON.parse(JSON.stringify(state))
+ const tree=entries.find(e=>e.id==='trees')
+ run({type:'extract',id:zip,parent:'docs',items:[{id:tree.id,file:await unpackEntry(tree)}]})
+ run({type:'rename',id:state.nodes.at(-1).id,name:'أشجاري.png'})
+ run({type:'trash',id:zip});run({type:'purge',id:zip})
+ assert.equal(grade(state,task).score,100)
+})

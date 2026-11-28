@@ -6,6 +6,7 @@ export const animals = [
   {id:'fish',name:'سمكة',category:'الأسماك',symbol:'🐟'},
   {id:'cat',name:'قطة',category:'الثدييات',symbol:'🐈'}
 ]
+export const projectImages={trees:{name:'الأشجار',symbol:'🌳'},park:{name:'الحديقة',symbol:'🌿'},floppy:{name:'قرص مرن',symbol:'💾'},disc:{name:'قرص ضوئي',symbol:'💿'},cloud:{name:'تخزين سحابي',symbol:'☁️'}}
 const prompts = {
   animals:'داخل المستندات أنشئ «الحيوانات» وبداخله الطيور والأسماك والثدييات. افتح صور التدريب، ثم سمّها نورس وسمكة وقطة مع الإبقاء على الامتداد .png وانقل كل صورة إلى فئتها.',
   continents:'أنشئ «قارات العالم» على سطح المكتب، وأضف آسيا وأستراليا وأفريقيا وأمريكا وأوروبا بداخله. أضف بلدك داخل آسيا، ثم جرّب نسخ مجلد بلد آخر ونقله وحذفه.',
@@ -13,6 +14,9 @@ const prompts = {
 }
 export const raceRoutes={direct:'مستكشف الملفات',folder:'اختصار مجلد الوقت',desktop:'اختصار سطح المكتب'}
 export const tasks = [
+  {id:'storage-project',title:'مشروع أجهزة التخزين',page:'٥٥',instructions:'ابحث عن صور أجهزة التخزين. تتوفر رموز تدريبية أصلية في المستندات. أنشئ مجلدين على سطح المكتب باسم «أجهزة التخزين السابقة» و«أجهزة التخزين المستقبلية». ضع الصور المناسبة في كل مجلد، واضغط الأول. أنشئ اختصارًا للثاني ثم احذفه وافتح السلة وأفرغها.'},
+  {id:'green-project',title:'ضغط مجلد المشروع واستخراج صورة',page:'٥٢–٥٣',instructions:'أنشئ «مشروع» في المستندات وانقل إليه ملفّي الرياض الخضراء وصورتي المشروع. اضغط المجلد وسمّ النسخة «مشروع_مضغوط». قارن الأحجام ثم احذف المجلدين. استعد المضغوط واحذف الأصل نهائيًا. استخرج صورة الأشجار إلى المستندات وسمّها «أشجاري»، ثم احذف المضغوط نهائيًا.'},
+  {id:'file-compression',title:'مقارنة حجم النص والرسم',page:'٥٤',instructions:'اضغط ملف النص واقرأ حجمه قبل الضغط وبعده. افتح الرسام وارسم جملًا واحفظه في المستندات، ثم اضغط الرسم وقارن الأحجام من داخل المجلد المضغوط.'},
   {id:'shortcut-race',title:'لعبة الاختصارات والتوقيت',page:'٤٩–٥٠',instructions:'أنشئ «الوقت» في المستندات و«تسجيلات» بداخله. انقل ملف الوقت إلى تسجيلات، ثم أنشئ له اختصارين في الوقت وعلى سطح المكتب. من سطح المكتب ابدأ توقيتًا لكل طريقة وافتح الملف بها. دوّن اسم الفريق والأزمنة في الملف ثم احذف الاختصارين.'},
   {id:'picture-shortcuts',title:'إنشاء اختصارات للصور',page:'٤٨',instructions:'افتح مجلد الصور في المستندات. اختر صورتين وأنشئ لكل منهما اختصارًا بجوارها وآخر على سطح المكتب. افتح أحد الاختصارات ثم احذف الاختصارات الأربعة وتحقق من بقاء الصورتين.'},
   {id:'hardware',title:'مكونات الحاسب واستخداماتها',page:'١٨–١٩',instructions:'افتح نشاط التصنيف. صنّف الأجهزة ثم اختر الأداة المناسبة لكل استخدام.'},
@@ -27,7 +31,11 @@ const folder=(id,parent,name)=>({id,parent,name,kind:'folder'})
 export function initial(task='animals'){
   return {version:1,task:tasks.some(t=>t.id===task)?task:'animals',answers:{},nodes:[
     folder('desktop',null,'سطح المكتب'),folder('docs',null,'المستندات'),folder('bin',null,'سلة المحذوفات'),
-    ...(task==='shortcut-race'?[{id:'timing-file',kind:'text',parent:'docs',name:'G5.S1.1.3_Time.txt',content:'اسم الفريق: \nمستكشف الملفات: \nاختصار مجلد الوقت: \nاختصار سطح المكتب: '}]:task==='picture-shortcuts'?[folder('pictures','docs','الصور'),
+    ...(task==='storage-project'?['floppy','disc','cloud'].map(asset=>({id:asset,asset,name:projectImages[asset].name+'.png',kind:'image',parent:'docs'})):task==='green-project'?[
+      {id:'plan',kind:'text',name:'G5.S1.1.3_Green_Riyadh_project.txt',content:'يسهم التشجير في تحسين بيئة المدينة وتظليل الطرق.',parent:'docs'},
+      {id:'species',kind:'text',name:'G5.S1.1.3_Tree_Types.txt',content:'تختار الأشجار المحلية الملائمة للمناخ.',parent:'docs'},
+      ...[['trees','الأشجار','🌳'],['park','الحديقة','🌿']].map(([id,name])=>({id,kind:'image',asset:id,parent:'docs',name:name+'.png'}))
+    ]:task==='file-compression'?[{id:'camel-text',name:'G5.S1.1.3_Date.txt',kind:'text',parent:'docs',content:'استخدم الناس الجمال للسفر ونقل الأمتعة عبر الصحراء. يساعد الجمل المسافر على قطع المسافات الطويلة في بيئات قليلة الماء.'}]:task==='shortcut-race'?[{id:'timing-file',kind:'text',parent:'docs',name:'G5.S1.1.3_Time.txt',content:'اسم الفريق: \nمستكشف الملفات: \nاختصار مجلد الوقت: \nاختصار سطح المكتب: '}]:task==='picture-shortcuts'?[folder('pictures','docs','الصور'),
       ...animals.map(a=>({id:a.id,parent:'pictures',name:a.name+'.png',kind:'image',asset:a.id}))]:task==='free'?[]:[folder('samples','docs',animalFolder),
     ...animals.map((a,i)=>({id:a.id,parent:'samples',kind:'image',name:'صورة '+(i+1)+'.png',asset:a.id}))])
   ],settings:{background:'jade',resolution:'1280×800',volume:60,clockOffset:0}}
@@ -61,7 +69,7 @@ export function valid(s){
   const index=new Map(),names=new Set(),rootOf=new Map()
   try{
     for(const n of s.nodes){
-      if(!n||typeof n.id!=='string'||!n.id||n.id.length>100||index.has(n.id)||!['folder','text','image','drawing','shortcut'].includes(n.kind))return false
+      if(!n||typeof n.id!=='string'||!n.id||n.id.length>100||index.has(n.id)||!['folder','text','image','drawing','shortcut','archive'].includes(n.kind))return false
       index.set(n.id,n)
     }
     for(const root of core){
@@ -83,11 +91,23 @@ export function valid(s){
       const nameKey=JSON.stringify([n.parent,key(n.name)])
       if(n.parent!=='bin'&&names.has(nameKey))return false
       names.add(nameKey)
+      if(n.kind==='archive'){
+        if(!Array.isArray(n.entries)||!n.entries.length||n.entries.length>600)return false
+        const parents=new Map()
+        for(const e of n.entries){
+          validName(e.name)
+          if(typeof e.id!=='string'||parents.has(e.id)||!['folder','text','image','drawing','shortcut'].includes(e.kind))return false
+          if(e.parent!==null&&parents.get(e.parent)!=='folder')return false
+          if(!Number.isSafeInteger(e.raw)||e.raw<1||e.raw>512000||!Number.isSafeInteger(e.packed)||e.packed<1||e.packed>520000||typeof e.data!=='string'||e.data.length!==4*Math.ceil(e.packed/3))return false
+          parents.set(e.id,e.kind)
+        }
+      }
       if(n.kind==='shortcut'&&(typeof n.target!=='string'||!n.target||n.target.length>100||index.get(n.target)?.kind==='shortcut'))return false
       if(n.kind==='text'&&(typeof n.content!=='string'||n.content.length>50000))return false
-      if(n.kind==='image'&&!animals.some(a=>n.asset===a.id))return false
+      if(n.kind==='image'&&!Object.hasOwn(projectImages,n.asset)&&!animals.some(a=>n.asset===a.id))return false
       if(n.kind==='drawing'&&(!Array.isArray(n.strokes)||n.strokes.length>500||!n.strokes.every(st=>st&&/^#[0-9a-f]{6}$/i.test(st.color)&&Array.isArray(st.points)&&st.points.length>0&&st.points.length<=1000&&st.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(v=>Number.isFinite(v)&&v>=0&&v<=1)))))return false
     }
+    if(s.deletedShortcutTargets!==undefined&&(!Array.isArray(s.deletedShortcutTargets)||s.deletedShortcutTargets.length>600||!s.deletedShortcutTargets.every(id=>typeof id==='string'&&id.length<=100)))return false
     if(s.timings!==undefined&&(!s.timings||typeof s.timings!=='object'||Array.isArray(s.timings)||Object.entries(s.timings).some(([k,v])=>!Object.hasOwn(raceRoutes,k)||!Number.isSafeInteger(v)||v<1)))return false
     const alarm=s.settings.alarm
     if(alarm&&(!/^([01]\d|2[0-3]):[0-5]\d$/.test(alarm.time)||!['wave','bell','bird'].includes(alarm.tone)||typeof alarm.enabled!=='boolean'))return false
@@ -116,8 +136,25 @@ export function apply(state,op){
     s.nodes.push({id:generate(),kind:op.kind,name:op.name,parent:op.parent,...(op.kind==='text'?{content:op.content??''}:op.kind==='drawing'?{strokes:op.strokes??[]}:{})})
   }else{
     if(!n||core.has(n.id))err('اختر ملفًا أو مجلدًا.')
-    if(ancestors(s,n.id).includes('bin')&&type!=='restore')err('استعد العنصر أولًا.')
-    if(type==='shortcut'){
+    if(ancestors(s,n.id).includes('bin')&&!['restore','purge'].includes(type))err('استعد العنصر أولًا.')
+    if(type==='compress'){
+      const name=copyName(s,n.parent,n.name+' - مضغوط')
+      s.nodes.push({id:generate(),name,parent:n.parent,kind:'archive',entries:op.entries})
+    }else if(type==='extract'&&n.kind==='archive'){
+      dest(s,op.parent)
+      const ids=new Map()
+      for(const e of op.items){
+        const original=n.entries.find(v=>v.id===e.id)
+        if(!original||ids.has(e.id)||e.file.kind!==original.kind||e.file.name!==original.name)err('عنصر غير صالح.')
+        const parent=ids.get(original.parent)??op.parent,id=generate()
+        s.nodes.push({...e.file,id,parent,name:copyName(s,parent,e.file.name),extractedFrom:original.id})
+        ids.set(e.id,id)
+      }
+    }else if(type==='purge'){
+      if(n.parent!=='bin')err('اختر عنصرًا من سلة المحذوفات.')
+      if(n.kind==='shortcut')s.deletedShortcutTargets=[...new Set([...(s.deletedShortcutTargets??[]),n.target])].slice(-600)
+      s.nodes=s.nodes.filter(v=>!ancestors(s,v.id).includes(n.id))
+    }else if(type==='shortcut'){
       const parent=op.parent??n.parent
       dest(s,parent)
       const target=n.kind==='shortcut'?n.target:n.id
@@ -165,6 +202,23 @@ export function grade(state,task='animals'){
   const sub=(id,name)=>children(s,id).find(n=>n.kind==='folder'&&norm(n.name)===norm(name))?.id
   if(exercises[task]&&Array.isArray(exercises[task])){
     for(const q of exercises[task])add(q.label,s.answers?.[q.id]===q.answer)
+  }else if(task==='storage-project'){
+    const old=sub('desktop','أجهزة التخزين السابقة'),future=sub('desktop','أجهزة التخزين المستقبلية')
+    const has=(parent,asset)=>!!parent&&children(s,parent).some(n=>n.asset===asset)
+    add('صور أجهزة التخزين السابقة',has(old,'floppy')&&has(old,'disc'))
+    add('صورة التخزين المستقبلي',has(future,'cloud'))
+    add('ضغط مجلد الأجهزة السابقة',!!old&&children(s,'desktop').some(n=>n.kind==='archive'&&n.entries.some(e=>e.id===old)))
+    add('حذف اختصار المجلد المستقبلي نهائيًا مع بقاء المجلد',!!future&&s.deletedShortcutTargets?.includes(future)&&!s.nodes.some(n=>n.kind==='shortcut'&&n.target===future))
+  }else if(task==='green-project'){
+    const image=children(s,'docs').find(n=>n.kind==='image'&&n.asset==='trees'&&n.extractedFrom==='trees')
+    add('استخراج صورة الأشجار إلى المستندات',image)
+    add('إعادة تسمية الصورة المستخرجة',image&&['أشجاري','أشجاري.png'].includes(image.name))
+    add('حذف أصول المشروع بعد الاستخراج',image&&['plan','species','trees','park'].every(id=>!node(s,id)))
+    add('حذف المجلد المضغوط بعد الاستخراج',image&&!s.nodes.some(n=>n.kind==='archive'&&n.entries.some(e=>e.id==='trees')))
+  }else if(task==='file-compression'){
+    const entries=s.nodes.filter(n=>n.kind==='archive'&&!ancestors(s,n.id).includes('bin')).flatMap(n=>n.entries)
+    add('ضغط ملف النص',entries.some(e=>e.kind==='text'&&e.id==='camel-text'))
+    add('ضغط رسم محفوظ',entries.some(e=>e.kind==='drawing'&&node(s,e.id)?.strokes.some(st=>st.points.length>1)))
   }else if(task==='shortcut-race'){
     const file=node(s,'timing-file')
     add('الملف الأصلي محفوظ في الوقت / تسجيلات',raceRoute(s,file)==='direct')

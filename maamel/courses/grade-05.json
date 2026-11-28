@@ -1,10 +1,114 @@
 {
   "grade": 5,
   "lessons": [
-    {"term": 1, "unit": "تعلم الأساسيات", "lesson": "الملفات والمجلدات", "start": 39, "end": 54}
+    {
+      "term": 1,
+      "unit": "تعلم الأساسيات",
+      "lesson": "الملفات والمجلدات",
+      "start": 39,
+      "end": 54
+    },
+    {
+      "term": 1,
+      "unit": "تعلم الأساسيات",
+      "lesson": "مشروع الوحدة",
+      "start": 55,
+      "end": 55
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "الصور والرسومات",
+      "start": 62,
+      "end": 68
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "التنسيق المتقدم",
+      "start": 69,
+      "end": 80
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "إدراج الرسومات التوضيحية",
+      "start": 81,
+      "end": 89
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "التدقيق والطباعة",
+      "start": 90,
+      "end": 96
+    }
   ],
   "activities": [
-    {"program": "windows", "task": "picture-shortcuts", "page": 48},
-    {"program": "windows", "task": "shortcut-race", "page": 49}
+    {
+      "program": "windows",
+      "task": "picture-shortcuts",
+      "page": 48
+    },
+    {
+      "program": "windows",
+      "task": "shortcut-race",
+      "page": 49
+    },
+    {
+      "program": "windows",
+      "task": "green-project",
+      "page": 52
+    },
+    {
+      "program": "windows",
+      "task": "file-compression",
+      "page": 54
+    },
+    {
+      "program": "windows",
+      "task": "storage-project",
+      "page": 55
+    },
+    {
+      "program": "word",
+      "task": "illustrated-facts",
+      "page": 66
+    },
+    {
+      "program": "word",
+      "task": "weekend-paragraphs",
+      "page": 76
+    },
+    {
+      "program": "word",
+      "task": "design-process",
+      "page": 89
+    },
+    {
+      "program": "word",
+      "task": "family-hierarchy",
+      "page": 89
+    },
+    {
+      "program": "word",
+      "task": "nutrition-pyramid",
+      "page": 89
+    },
+    {
+      "program": "word",
+      "task": "security-proof",
+      "page": 94
+    },
+    {
+      "program": "word",
+      "task": "mosque-proof",
+      "page": 95
+    },
+    {
+      "program": "word",
+      "task": "oil-print",
+      "page": 96
+    }
   ]
 }
