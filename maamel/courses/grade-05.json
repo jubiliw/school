@@ -1,0 +1,277 @@
+{
+  "grade": 5,
+  "lessons": [
+    {
+      "term": 1,
+      "unit": "تعلم الأساسيات",
+      "lesson": "الملفات والمجلدات",
+      "start": 39,
+      "end": 54
+    },
+    {
+      "term": 1,
+      "unit": "تعلم الأساسيات",
+      "lesson": "مشروع الوحدة",
+      "start": 55,
+      "end": 55
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "الصور والرسومات",
+      "start": 62,
+      "end": 68
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "التنسيق المتقدم",
+      "start": 69,
+      "end": 80
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "إدراج الرسومات التوضيحية",
+      "start": 81,
+      "end": 89
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "التدقيق والطباعة",
+      "start": 90,
+      "end": 96
+    },
+    {
+      "term": 1,
+      "unit": "التعامل مع المستندات",
+      "lesson": "مشروع الوحدة",
+      "start": 97,
+      "end": 97
+    },
+    {
+      "term": 1,
+      "unit": "الوسائط المتعددة",
+      "lesson": "استخدام أجهزة الالتقاط وتحرير مقاطع الصوت",
+      "start": 103,
+      "end": 131
+    },
+    {
+      "term": 1,
+      "unit": "الوسائط المتعددة",
+      "lesson": "البحث عن الوسائط المتعددة وإنشاء وتحرير مقاطع الفيديو",
+      "start": 132,
+      "end": 154
+    },
+    {
+      "term": 1,
+      "unit": "الوسائط المتعددة",
+      "lesson": "مشروع الوحدة",
+      "start": 155,
+      "end": 155
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "كيفية تصميم برنامج",
+      "start": 162,
+      "end": 169
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "الكائنات في سكراتش",
+      "start": 170,
+      "end": 181
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "المعاملات الشرطية",
+      "start": 182,
+      "end": 192
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "الحركة في سكراتش",
+      "start": 193,
+      "end": 206
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "رسائل البث",
+      "start": 207,
+      "end": 216
+    }
+  ],
+  "activities": [
+    {
+      "program": "windows",
+      "task": "picture-shortcuts",
+      "page": 48
+    },
+    {
+      "program": "windows",
+      "task": "shortcut-race",
+      "page": 49
+    },
+    {
+      "program": "windows",
+      "task": "green-project",
+      "page": 52
+    },
+    {
+      "program": "windows",
+      "task": "file-compression",
+      "page": 54
+    },
+    {
+      "program": "windows",
+      "task": "storage-project",
+      "page": 55
+    },
+    {
+      "program": "word",
+      "task": "illustrated-facts",
+      "page": 66
+    },
+    {
+      "program": "word",
+      "task": "weekend-paragraphs",
+      "page": 76
+    },
+    {
+      "program": "word",
+      "task": "design-process",
+      "page": 89
+    },
+    {
+      "program": "word",
+      "task": "family-hierarchy",
+      "page": 89
+    },
+    {
+      "program": "word",
+      "task": "nutrition-pyramid",
+      "page": 89
+    },
+    {
+      "program": "word",
+      "task": "security-proof",
+      "page": 94
+    },
+    {
+      "program": "word",
+      "task": "mosque-proof",
+      "page": 95
+    },
+    {
+      "program": "word",
+      "task": "oil-print",
+      "page": 96
+    },
+    {
+      "program": "word",
+      "task": "research-project",
+      "page": 97
+    },
+    {
+      "program": "audacity",
+      "task": "forest",
+      "page": 131
+    },
+    {
+      "program": "audacity",
+      "task": "school-podcast",
+      "page": 131
+    },
+    {
+      "program": "media",
+      "task": "forest-media",
+      "page": 152
+    },
+    {
+      "program": "media",
+      "task": "forest-story",
+      "page": 154
+    },
+    {
+      "program": "media",
+      "task": "gardens-film",
+      "page": 155
+    },
+    {
+      "program": "review",
+      "task": "algorithm-steps",
+      "page": 167
+    },
+    {
+      "program": "review",
+      "task": "flowchart-shapes",
+      "page": 168
+    },
+    {
+      "program": "scratch",
+      "task": "red-triangle-center",
+      "page": 169
+    },
+    {
+      "program": "scratch",
+      "task": "feeding-hen",
+      "page": 180
+    },
+    {
+      "program": "scratch",
+      "task": "aquarium",
+      "page": 181
+    },
+    {
+      "program": "scratch",
+      "task": "age-dialog",
+      "page": 189
+    },
+    {
+      "program": "scratch",
+      "task": "balloon-colors",
+      "page": 190
+    },
+    {
+      "program": "review",
+      "task": "weather-decisions",
+      "page": 191
+    },
+    {
+      "program": "scratch",
+      "task": "exam-result",
+      "page": 192
+    },
+    {
+      "program": "review",
+      "task": "scratch-stop-scope",
+      "page": 203
+    },
+    {
+      "program": "review",
+      "task": "scratch-headings",
+      "page": 203
+    },
+    {
+      "program": "scratch",
+      "task": "catch-balls",
+      "page": 204
+    },
+    {
+      "program": "scratch",
+      "task": "arrow-cat",
+      "page": 205
+    },
+    {
+      "program": "scratch",
+      "task": "space-dialog",
+      "page": 216
+    }
+  ]
+}

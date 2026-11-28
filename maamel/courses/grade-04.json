@@ -1,0 +1,655 @@
+{
+  "grade": 4,
+  "lessons": [
+    {
+      "unit": "تعلم الأساسيات",
+      "lesson": "الحاسب",
+      "start": 14,
+      "end": 19,
+      "term": 1
+    },
+    {
+      "unit": "تعلم الأساسيات",
+      "lesson": "سطح المكتب",
+      "start": 20,
+      "end": 32,
+      "term": 1
+    },
+    {
+      "unit": "تعلم الأساسيات",
+      "lesson": "إعدادات جهاز الحاسب",
+      "start": 33,
+      "end": 38,
+      "term": 1
+    },
+    {
+      "unit": "العمل على النص",
+      "lesson": "لوحة المفاتيح",
+      "start": 44,
+      "end": 52,
+      "term": 1
+    },
+    {
+      "unit": "العمل على النص",
+      "lesson": "تحرير النص",
+      "start": 53,
+      "end": 65,
+      "term": 1
+    },
+    {
+      "unit": "العمل على النص",
+      "lesson": "تنسيق النص",
+      "start": 66,
+      "end": 73,
+      "term": 1
+    },
+    {
+      "unit": "العمل على النص",
+      "lesson": "تنسيق الفقرة",
+      "start": 74,
+      "end": 82,
+      "term": 1
+    },
+    {
+      "unit": "عالمي المتصل",
+      "lesson": "الموقع الإلكتروني",
+      "start": 88,
+      "end": 93,
+      "term": 1
+    },
+    {
+      "unit": "عالمي المتصل",
+      "lesson": "البحث في الإنترنت",
+      "start": 94,
+      "end": 99,
+      "term": 1
+    },
+    {
+      "unit": "عالمي المتصل",
+      "lesson": "مصادر المعلومات",
+      "start": 100,
+      "end": 106,
+      "term": 1
+    },
+    {
+      "unit": "عالمي المتصل",
+      "lesson": "السلامة على الإنترنت",
+      "start": 107,
+      "end": 113,
+      "term": 1
+    },
+    {
+      "unit": "البرمجة باستخدام سكراتش",
+      "lesson": "أساسيات سكراتش",
+      "start": 120,
+      "end": 129,
+      "term": 1
+    },
+    {
+      "unit": "البرمجة باستخدام سكراتش",
+      "lesson": "البرمجة باستخدام اللبنات",
+      "start": 130,
+      "end": 140,
+      "term": 1
+    },
+    {
+      "unit": "البرمجة باستخدام سكراتش",
+      "lesson": "التكرارات في سكراتش",
+      "start": 141,
+      "end": 146,
+      "term": 1
+    },
+    {
+      "unit": "البرمجة باستخدام سكراتش",
+      "lesson": "الرسم بواسطة سكراتش",
+      "start": 147,
+      "end": 156,
+      "term": 1
+    },
+    {
+      "unit": "عرضي التقديمي",
+      "lesson": "الشرائح التقديمية",
+      "start": 176,
+      "end": 188,
+      "term": 2
+    },
+    {
+      "unit": "عرضي التقديمي",
+      "lesson": "إدراج الصور",
+      "start": 189,
+      "end": 197,
+      "term": 2
+    },
+    {
+      "unit": "عرضي التقديمي",
+      "lesson": "الانتقالات وتأثيرات الحركة",
+      "start": 198,
+      "end": 202,
+      "term": 2
+    },
+    {
+      "unit": "عرضي التقديمي",
+      "lesson": "إدراج مقاطع فيديو",
+      "start": 203,
+      "end": 212,
+      "term": 2
+    },
+    {
+      "unit": "العمل على الأرقام",
+      "lesson": "جدول البيانات",
+      "start": 218,
+      "end": 225,
+      "term": 2
+    },
+    {
+      "unit": "العمل على الأرقام",
+      "lesson": "إدخال البيانات والعمليات الحسابية",
+      "start": 226,
+      "end": 238,
+      "term": 2
+    },
+    {
+      "unit": "استخدام الوسائط المتعددة",
+      "lesson": "إنشاء مقطع صوتي",
+      "start": 244,
+      "end": 249,
+      "term": 2
+    },
+    {
+      "unit": "استخدام الوسائط المتعددة",
+      "lesson": "عرض الصور ومقاطع الفيديو",
+      "start": 250,
+      "end": 256,
+      "term": 2
+    },
+    {
+      "unit": "استخدام الوسائط المتعددة",
+      "lesson": "إدخال التحسينات على الصورة",
+      "start": 257,
+      "end": 264,
+      "term": 2
+    },
+    {
+      "unit": "استخدام الوسائط المتعددة",
+      "lesson": "تطبيق التأثيرات على الصور",
+      "start": 265,
+      "end": 269,
+      "term": 2
+    },
+    {
+      "unit": "مقدمة في علم الروبوت",
+      "lesson": "مقدمة في علم الروبوت",
+      "start": 276,
+      "end": 291,
+      "term": 2
+    },
+    {
+      "unit": "مقدمة في علم الروبوت",
+      "lesson": "انعطاف الروبوت",
+      "start": 292,
+      "end": 299,
+      "term": 2
+    },
+    {
+      "unit": "تعلم الأساسيات",
+      "lesson": "مشروع الوحدة",
+      "start": 39,
+      "end": 39,
+      "term": 1
+    },
+    {
+      "unit": "العمل على النص",
+      "lesson": "مشروع الوحدة",
+      "start": 83,
+      "end": 83,
+      "term": 1
+    },
+    {
+      "unit": "عالمي المتصل",
+      "lesson": "مشروع الوحدة",
+      "start": 114,
+      "end": 114,
+      "term": 1
+    },
+    {
+      "unit": "البرمجة باستخدام سكراتش",
+      "lesson": "مشروع الوحدة",
+      "start": 157,
+      "end": 157,
+      "term": 1
+    },
+    {
+      "unit": "عرضي التقديمي",
+      "lesson": "مشروع الوحدة",
+      "start": 213,
+      "end": 213,
+      "term": 2
+    },
+    {
+      "unit": "العمل على الأرقام",
+      "lesson": "مشروع الوحدة",
+      "start": 239,
+      "end": 239,
+      "term": 2
+    },
+    {
+      "unit": "استخدام الوسائط المتعددة",
+      "lesson": "مشروع الوحدة",
+      "start": 270,
+      "end": 270,
+      "term": 2
+    },
+    {
+      "unit": "مقدمة في علم الروبوت",
+      "lesson": "مشروع الوحدة",
+      "start": 300,
+      "end": 300,
+      "term": 2
+    },
+    {
+      "unit": "إثراء",
+      "lesson": "التعرف على النصوص",
+      "start": 303,
+      "end": 306,
+      "term": 2
+    },
+    {
+      "unit": "تعلم الأساسيات",
+      "lesson": "تقويم الوحدة",
+      "start": 160,
+      "end": 160,
+      "term": 1
+    },
+    {
+      "unit": "العمل على النص",
+      "lesson": "تقويم الوحدة",
+      "start": 161,
+      "end": 162,
+      "term": 1
+    },
+    {
+      "unit": "عالمي المتصل",
+      "lesson": "تقويم الوحدة",
+      "start": 163,
+      "end": 165,
+      "term": 1
+    },
+    {
+      "unit": "البرمجة باستخدام سكراتش",
+      "lesson": "تقويم الوحدة",
+      "start": 166,
+      "end": 169,
+      "term": 1
+    },
+    {
+      "unit": "عرضي التقديمي",
+      "lesson": "تقويم الوحدة",
+      "start": 308,
+      "end": 311,
+      "term": 2
+    },
+    {
+      "unit": "العمل على الأرقام",
+      "lesson": "تقويم الوحدة",
+      "start": 312,
+      "end": 313,
+      "term": 2
+    },
+    {
+      "unit": "استخدام الوسائط المتعددة",
+      "lesson": "تقويم الوحدة",
+      "start": 314,
+      "end": 315,
+      "term": 2
+    },
+    {
+      "unit": "مقدمة في علم الروبوت",
+      "lesson": "تقويم الوحدة",
+      "start": 316,
+      "end": 317,
+      "term": 2
+    }
+  ],
+  "activities": [
+    {
+      "program": "windows",
+      "task": "hardware",
+      "page": 18
+    },
+    {
+      "program": "windows",
+      "task": "filetypes",
+      "page": 29
+    },
+    {
+      "program": "windows",
+      "task": "display",
+      "page": 34
+    },
+    {
+      "program": "windows",
+      "task": "alarm",
+      "page": 37
+    },
+    {
+      "program": "windows",
+      "task": "animals",
+      "page": 31
+    },
+    {
+      "program": "windows",
+      "task": "continents",
+      "page": 31
+    },
+    {
+      "program": "windows",
+      "task": "project",
+      "page": 39
+    },
+    {
+      "program": "word",
+      "task": "fruit",
+      "page": 52
+    },
+    {
+      "program": "word",
+      "task": "edit",
+      "page": 63
+    },
+    {
+      "program": "word",
+      "task": "headline",
+      "page": 73
+    },
+    {
+      "program": "word",
+      "task": "months",
+      "page": 79
+    },
+    {
+      "program": "word",
+      "task": "city",
+      "page": 83
+    },
+    {
+      "program": "slides",
+      "task": "healthy",
+      "page": 188
+    },
+    {
+      "program": "slides",
+      "task": "sport",
+      "page": 197
+    },
+    {
+      "program": "slides",
+      "task": "introduce",
+      "page": 202
+    },
+    {
+      "program": "slides",
+      "task": "holiday",
+      "page": 213
+    },
+    {
+      "program": "sheets",
+      "task": "secret",
+      "page": 224
+    },
+    {
+      "program": "sheets",
+      "task": "travel",
+      "page": 234
+    },
+    {
+      "program": "sheets",
+      "task": "votes",
+      "page": 237
+    },
+    {
+      "program": "sheets",
+      "task": "cost",
+      "page": 238
+    },
+    {
+      "program": "scratch",
+      "task": "space",
+      "page": 128
+    },
+    {
+      "program": "scratch",
+      "task": "football",
+      "page": 128
+    },
+    {
+      "program": "scratch",
+      "task": "speak",
+      "page": 132
+    },
+    {
+      "program": "scratch",
+      "task": "bird",
+      "page": 140
+    },
+    {
+      "program": "scratch",
+      "task": "greet",
+      "page": 140
+    },
+    {
+      "program": "scratch",
+      "task": "turn",
+      "page": 140
+    },
+    {
+      "program": "scratch",
+      "task": "picnic",
+      "page": 140
+    },
+    {
+      "program": "scratch",
+      "task": "loop",
+      "page": 142
+    },
+    {
+      "program": "scratch",
+      "task": "walk",
+      "page": 145
+    },
+    {
+      "program": "scratch",
+      "task": "turns",
+      "page": 146
+    },
+    {
+      "program": "scratch",
+      "task": "line",
+      "page": 148
+    },
+    {
+      "program": "scratch",
+      "task": "square",
+      "page": 152
+    },
+    {
+      "program": "scratch",
+      "task": "triangle",
+      "page": 153
+    },
+    {
+      "program": "scratch",
+      "task": "circle",
+      "page": 153
+    },
+    {
+      "program": "scratch",
+      "task": "dashed",
+      "page": 155
+    },
+    {
+      "program": "scratch",
+      "task": "review-dashes",
+      "page": 169
+    },
+    {
+      "program": "scratch",
+      "task": "basketball",
+      "page": 157
+    },
+    {
+      "program": "robot",
+      "task": "return",
+      "page": 287
+    },
+    {
+      "program": "robot",
+      "task": "speed",
+      "page": 291
+    },
+    {
+      "program": "robot",
+      "task": "steering",
+      "page": 295
+    },
+    {
+      "program": "robot",
+      "task": "circle",
+      "page": 298
+    },
+    {
+      "program": "robot",
+      "task": "two-circles",
+      "page": 299
+    },
+    {
+      "program": "robot",
+      "task": "square",
+      "page": 300
+    },
+    {
+      "program": "web",
+      "task": "safety",
+      "page": 112
+    },
+    {
+      "program": "web",
+      "task": "robot",
+      "page": 97
+    },
+    {
+      "program": "web",
+      "task": "privacy",
+      "page": 106
+    },
+    {
+      "program": "web",
+      "task": "security",
+      "page": 105
+    },
+    {
+      "program": "web",
+      "task": "prayer",
+      "page": 104
+    },
+    {
+      "program": "web",
+      "task": "landmark",
+      "page": 114
+    },
+    {
+      "program": "web",
+      "task": "vision",
+      "page": 92
+    },
+    {
+      "program": "media",
+      "task": "coast",
+      "page": 269
+    },
+    {
+      "program": "media",
+      "task": "spot",
+      "page": 264
+    },
+    {
+      "program": "media",
+      "task": "eyes",
+      "page": 257
+    },
+    {
+      "program": "media",
+      "task": "crop",
+      "page": 262
+    },
+    {
+      "program": "media",
+      "task": "turn",
+      "page": 264
+    },
+    {
+      "program": "media",
+      "task": "album",
+      "page": 267
+    },
+    {
+      "program": "media",
+      "task": "collection",
+      "page": 253
+    },
+    {
+      "program": "av",
+      "task": "record",
+      "page": 248
+    },
+    {
+      "program": "av",
+      "task": "watch",
+      "page": 255
+    },
+    {
+      "program": "ai",
+      "task": "snip",
+      "page": 304
+    },
+    {
+      "program": "review",
+      "task": "G4-Q01",
+      "page": 160
+    },
+    {
+      "program": "review",
+      "task": "G4-Q02",
+      "page": 161
+    },
+    {
+      "program": "review",
+      "task": "G4-Q03",
+      "page": 163
+    },
+    {
+      "program": "review",
+      "task": "G4-Q04",
+      "page": 166
+    },
+    {
+      "program": "review",
+      "task": "G4-Q05",
+      "page": 308
+    },
+    {
+      "program": "review",
+      "task": "G4-Q06",
+      "page": 312
+    },
+    {
+      "program": "review",
+      "task": "G4-Q07",
+      "page": 314
+    },
+    {
+      "program": "review",
+      "task": "G4-Q08",
+      "page": 316
+    }
+  ]
+}

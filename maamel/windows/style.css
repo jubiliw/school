@@ -1,0 +1,63 @@
+.wm,.wm *{box-sizing:border-box}.wm{position:relative;isolation:isolate;border:1px solid #8ba4ac;border-radius:14px;overflow:hidden;font:15px/1.5 Tahoma,Arial,sans-serif;color:#1c343a;background-color:#a9ced3;direction:rtl}.wm button,.wm input,.wm select,.wm textarea{font:inherit;color:inherit}.wm button{background:#fff;border:1px solid #b9cace;border-radius:6px;padding:5px 10px;cursor:pointer;box-shadow:none;letter-spacing:normal;min-height:34px}.wm button:disabled{opacity:.43;cursor:default}.wm button:hover:not(:disabled){background:#e5f3f0}.wm :focus-visible{outline:3px solid #197675;outline-offset:1px}.wm-bench{position:relative;min-height:440px;padding:22px 16px 22px;display:grid;align-content:start}.wm-shortcuts{position:absolute;inset:8px;display:flex;align-items:flex-start;align-content:flex-start;flex-wrap:wrap;gap:5px;overflow:auto}.wm-shortcuts button{background:#ffffffe0;color:#153c45}.wm-window{position:relative;background:#fff;margin:32px auto 0;width:min(740px,100%);border:1px solid #8a9ca1;box-shadow:0 10px 30px #15313b38;border-radius:10px;overflow:hidden;align-self:start}.wm-max{width:100%;margin:0;min-height:397px}.wm-title,.wm-path,.wm-tools,.wm-bar{display:flex;align-items:center;gap:5px}.wm-title{background:#e6eef0;padding:7px 12px}.wm-title strong{margin-inline-end:auto}.wm-title button{border:0;padding:2px 9px;background:transparent;min-height:29px}.wm-body{padding:10px;min-height:260px}.wm-path,.wm-tools{flex-wrap:wrap;margin-block-end:8px}.wm-path{font-size:.88em;background:#f5f8f8;padding:4px}.wm-tools button,.wm-split nav button{font-size:.87em}.wm-split{display:grid;grid-template-columns:minmax(100px,20%) 1fr;min-height:150px}.wm-split nav{border-inline-end:1px solid #d5e2e4;display:flex;flex-direction:column;gap:4px;padding-inline-end:8px}.wm-split nav button{text-align:start;border-color:transparent}.wm button.current,.wm button[aria-pressed=true]{background:#d8efeb;border-color:#5a9e94}.wm-files{display:flex;gap:6px;padding:8px;align-items:flex-start;align-content:start;flex-wrap:wrap;min-height:140px}.wm-files .wm-tile{display:grid;justify-items:center;gap:2px;width:108px;min-height:78px;padding:5px;word-break:break-word;font-size:.87em;border-color:transparent}.wm-files .wm-tile[aria-pressed=true]{border-color:#53958a}.wm-ico{font-size:29px}.wm[data-res="800×600"] .wm-ico{font-size:40px}.wm[data-res="1920×1200"] .wm-ico{font-size:21px}.wm-empty{margin:auto;color:#5c7478}.wm-bar{position:relative;background:#18343b;color:white;padding:5px 8px;flex-wrap:wrap}.wm-bar button{background:transparent;color:white;border-color:#618084}.wm-bar button:hover:not(:disabled){background:#375960}.wm-clock{margin-inline-start:auto}.wm-start,.wm-context{background:#fff;border:1px solid #a1b4b8;border-radius:8px;padding:5px;box-shadow:0 8px 25px #17313942;display:grid;z-index:2}.wm-start{position:absolute;bottom:3px;right:3px;min-width:180px}.wm-context{position:absolute;max-height:90%;overflow:auto}.wm-start button,.wm-context button{border:none;text-align:start}.wm-status{background:#eef5f3;color:#284d49;font-size:13px;padding:0 8px}.wm-status:not(:empty){padding-block:4px}.wm-dialog{border:1px solid #91a7aa;max-width:min(460px,93vw);width:360px;border-radius:10px;padding:16px;color:#163d40;background:#fff}.wm-dialog::backdrop{background:#10343855}.wm-dialog form,.wm-settings{display:grid;gap:10px}.wm-dialog textarea{min-height:150px}.wm-dialog input,.wm-dialog textarea,.wm-dialog select,.wm-settings input,.wm-settings select,.wm-body>input{border:1px solid #819d9d;border-radius:5px;padding:7px;max-width:100%;width:100%;background:white}.wm-settings{max-width:420px;margin:auto}.wm-settings label{display:grid;gap:2px}.wm-picture{text-align:center;background:#d9ecec;font-size:100px}.wm-canvas{display:block;width:100%;max-width:800px;touch-action:none;border:1px solid #adb9bb}.wm-calculator{max-width:270px;margin:auto}.wm-calculator output{display:block;padding:8px;background:#e4efed;border:1px solid #9eb8b6;text-align:end;overflow:auto;font-size:1.55rem}.wm-calculator>div{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:5px}
+@media(max-width:620px){.wm-bench{padding:8px 4px;min-height:450px}.wm-window{margin-top:40px}.wm-split{grid-template-columns:1fr}.wm-split nav{display:flex;flex-direction:row;flex-wrap:wrap;border:0;border-bottom:1px solid #cedbdb;padding:3px}.wm-body{padding:6px}.wm-files .wm-tile{width:90px}.wm-tools{gap:3px}.wm-tools button{min-height:36px}.wm .wm-bench button{touch-action:manipulation}}
+
+/* RTL desktop, app chrome and an independently scrollable file pane. */
+.wm{border-radius:10px;background-position:center;box-shadow:0 4px 18px #142d4220;overflow:hidden}
+.wm [hidden]{display:none!important}
+.wm-bench{min-height:475px;padding:20px 18px 20px clamp(8px,3vw,44px)}
+.wm-shortcuts{inset:12px;flex-direction:column;align-items:flex-start;align-content:flex-start;pointer-events:none}
+.wm-shortcuts button{width:85px;min-height:48px;display:block;text-align:center;background:#11385465;border:1px solid transparent;color:#fff;font-size:12px;text-shadow:0 1px 2px #142b40;overflow-wrap:anywhere;pointer-events:auto}
+.wm-shortcuts button:hover:not(:disabled){background:#315c74;color:white}
+.wm-window{width:min(830px,calc(100% - 96px));margin:0 auto 0 0;min-width:0;border-color:#778f9a;border-radius:5px;box-shadow:0 10px 35px #0b253c48}
+.wm-window.wm-max{width:100%;margin:0}
+.wm-title{min-height:33px;padding:0 8px 0 0;background:#f6f7f8;border-bottom:1px solid #cad2d5;font-size:13px}
+.wm-title button{border-radius:0;align-self:stretch;min-width:32px}
+.wm-title button:last-child:hover{background:#aa2931;color:white}
+.wm-body{min-height:300px;padding:0;overflow:auto;max-height:min(66vh,650px);background:white}
+.wm-body>.wm-settings,.wm-body>.wm-calculator,.wm-body>input,.wm-body>select{margin:12px}
+.wm-body>.wm-calculator{margin:14px auto}
+.wm-tabs{display:flex;gap:0;border-bottom:1px solid #c5cccf;background:white}
+.wm-tabs button{background:white;border:0;border-radius:0;padding:4px 15px;font-size:13px}
+.wm-tabs button[aria-pressed=true],.wm-tabs button[aria-expanded=true]{border-bottom:2px solid #12627d;background:#eaf4f8;color:#133d52}
+.wm-tabs+.wm-tools,.wm-tabs~.wm-tools{margin:0;gap:4px;padding:5px 8px;background:#f1f3f5;border-bottom:1px solid #c8d0d4}
+.wm-tools button{background:#fff;border:1px solid #bac4c8;border-radius:3px}
+.wm-path{margin:4px 7px;gap:4px;background:#fff}
+.wm-path button{border:0;border-radius:2px;padding:1px 6px;min-height:28px}
+.wm-trail{display:flex;align-items:center;gap:6px;padding:1px 7px;border:1px solid #bbc8cc;min-height:27px;flex:1}
+.wm-trail>span:first-child{color:#cb9b3d}
+.wm-split{min-height:205px}
+.wm-split nav{padding:7px 5px;background:#f7f8f8}
+.wm-split nav button{border-radius:2px;background:transparent}
+.wm-split nav button.current{background:#dcecf5;border-color:#a5c8d9}
+.wm-files{align-content:flex-start;overflow:auto}
+.wm-files.wm-rows{display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap}
+.wm-files.wm-rows .wm-tile{width:100%;display:flex;min-height:32px;align-items:center;text-align:start;gap:8px;padding:2px 6px}
+.wm-files.wm-rows .wm-ico{font-size:18px}
+.wm-footer{color:#405d6b;border-top:1px solid #dce3e6;padding:3px 12px;font-size:12px;background:#f7f8f9}
+.wm-bar{background:#132838eb;gap:2px;padding:2px 5px;min-height:40px}
+.wm-bar button{border:none;border-radius:2px;padding:4px 10px}
+.wm-bar button:first-child{font-size:16px}
+.wm-bar button:nth-last-child(2){margin-inline-start:auto}
+.wm-clock{margin-inline-start:0}
+.wm-start{display:grid;grid-template-columns:minmax(85px,30%) 1fr;grid-template-rows:auto 1fr;gap:6px;min-width:0;width:min(355px,calc(100% - 10px));background:#183344;color:white;border-color:#53717d}
+.wm-start>input{grid-column:1/-1;background:white;color:#173b49;border:1px solid #b6c9d1;padding:8px;min-height:36px;border-radius:3px}
+.wm-start-rail{display:flex;flex-direction:column;gap:2px;border-inline-end:1px solid #607b8a;padding-inline-end:3px}
+.wm-app-list{display:grid;gap:1px;max-height:280px;overflow:auto}
+.wm-start button,.wm-accessories summary{color:white;background:transparent;border-radius:2px;font-size:14px;width:100%;text-align:start}
+.wm-start button:hover:not(:disabled),.wm-accessories summary:hover{background:#305366}
+.wm-accessories summary{padding:6px;cursor:pointer}
+.wm-accessories button{padding-inline-start:20px}
+.wm-context{background:#fbfbfb;border-radius:3px;min-width:140px}
+.wm-context button{border-radius:0;font-size:13px}
+.wm-settings-frame{display:grid;grid-template-columns:minmax(100px,24%) minmax(0,1fr);min-height:280px}
+.wm-settings-frame nav{display:flex;flex-direction:column;align-items:stretch;gap:4px;background:#eef2f4;padding:10px 5px}
+.wm-settings-frame nav button{text-align:start;border:0;background:transparent;border-radius:2px}
+.wm-settings-frame nav button[aria-current=page]{background:#d8e8f0;border-inline-start:3px solid #147091}
+.wm-settings-frame .wm-settings{padding:12px;margin:0;align-content:start;width:100%;max-width:unset}
+.wm-settings h3{font-size:19px;margin:0}
+.wm-monitor{display:grid;place-items:center;direction:ltr;margin:15px auto;width:120px;height:73px;border:5px solid #344851;border-bottom-width:9px;border-radius:3px;background:#d4e6ed;color:#18485e;font-size:14px}
+.wm-backgrounds{display:flex;flex-wrap:wrap;gap:5px}
+.wm-backgrounds button{min-height:50px;color:#fff;background-color:#295163;text-shadow:0 1px 4px #112432}
+.wm-paint-file{display:grid;align-content:start;justify-items:start;padding:10px;gap:8px}
+.wm-canvas{margin:auto;border:8px solid #dfe4e8;box-shadow:0 0 0 1px #abb9c2}
+@media(max-width:680px){.wm-bench{padding:6px 3px;min-height:440px}.wm-shortcuts{flex-direction:row;inset:3px}.wm-shortcuts button{width:auto;min-height:30px;max-width:105px;padding:3px 5px}.wm-window{margin:34px 0 0;width:100%}.wm-max{min-height:370px}.wm-bar button{font-size:12px}.wm-body{max-height:65vh}.wm-split{min-height:175px}.wm-trail{overflow-wrap:anywhere}.wm-tools{overflow-x:auto}.wm-settings-frame{grid-template-columns:1fr}.wm-settings-frame nav{flex-direction:row;flex-wrap:wrap;padding:3px}.wm-settings-frame nav button{font-size:13px}.wm-split nav{flex-direction:row;padding:3px}.wm-files .wm-tile{min-height:60px}}

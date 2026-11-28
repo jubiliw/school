@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {grade,rate,pack,testTone,wav}from './model.mjs';
+test('recording roundtrip graded from actual waveform; silent and malformed fail audio criterion',()=>{const v=testTone(1),s={clip:{name:'مقدمة',folder:'الفريق',pcm:pack(v)}};assert.equal(grade(JSON.parse(JSON.stringify(s)),'record').score,100);assert.equal(wav(v).length,rate+44);for(const pcm of [pack(new Uint8Array(rate).fill(128)),'!!'])assert.ok(grade({clip:{...s.clip,pcm}},'record').score<100);});
+test('movie comprehension awards partial credit for one correct observation',()=>{assert.equal(grade({answers:{birds:'3',place:'sea'}},'watch').score,50);assert.equal(grade({answers:{birds:'3',place:'sky'}},'watch').score,100);});

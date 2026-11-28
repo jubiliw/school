@@ -1,0 +1,53 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {tasks,initial,grade} from './model.mjs';
+import {run} from './runtime.mjs';
+const flag={op:'flag'},down={op:'down'},up={op:'up'};
+const move=n=>({op:'move',n}),turn=(n,op='cw')=>({op,n}),say=(text,seconds=2)=>({op:'say',text,seconds}),sound=sound=>({op:'sound',sound}),repeat=(n,...body)=>({op:'repeat',n,body});
+const balloon=costume=>({costume,blocks:[{op:'clicked'},{op:'ask',text:'ما لوني؟'},{op:'reply',prefix:'لوني ',suffix:'',seconds:3}]});
+const ball=costume=>({costume,blocks:[flag,{op:'forever',body:[move(10),{op:'edge'}]},{op:'clicked'},{op:'stopOther'},say('لقد حصلت على الكرة')]});
+const examples={
+ 'space-dialog':{costume:'pico',scene:'spaceship',blocks:[flag,say('مرحبًا'),{op:'broadcastWait',message:'ابدأ'}],others:[{costume:'nano',blocks:[{op:'receive',message:'ابدأ'},say('أهلًا')]}]},
+ 'catch-balls':{...ball('beachBall'),others:[ball('baseball'),ball('basketBall')]},
+ 'arrow-cat':{blocks:[['ArrowUp',0,'أعلى'],['ArrowDown',180,'أسفل'],['ArrowRight',90,'يمين'],['ArrowLeft',-90,'يسار']].flatMap(([key,direction,text])=>[{op:'key',key},{op:'point',direction},move(10),say(text)])},
+ 'balloon-colors':{scene:'light',...balloon('blueBalloon'),others:[balloon('yellowBalloon'),balloon('purpleBalloon')]},
+ 'age-dialog':{blocks:[{op:'clicked'},{op:'ask',text:'كم عمرك؟'},{op:'reply',prefix:'عمرك ',suffix:' سنة'}]},
+ 'exam-result':[{op:'ask',text:'كم درجتك؟'},...['lt','eq','gt'].map(comparison=>({op:'ifAnswer',comparison,value:50,body:[say(comparison==='lt'?'راسب':'ناجح')]}))],
+ aquarium:{scene:'sea',costume:'fish',blocks:[flag,move(12)],others:[{costume:'jelly',blocks:[flag,turn(90),move(25)]},{costume:'puffer',blocks:[flag,repeat(3,move(10))]}]},
+ 'feeding-hen':{scene:'farm',blocks:[flag,repeat(10,{op:'costume',costume:'hen-c'},{op:'wait',n:.3},{op:'costume',costume:'hen-d'},{op:'wait',n:.3})]},
+ 'red-triangle-center':[{op:'color',n:0},down,repeat(3,move(100),turn(120)),up,turn(30),move(55),sound('cat')],
+ space:{title:'الفضاء',scene:'space'},football:{title:'كرة القدم',scene:'football',x:-140},
+ speak:[say('مرحبًا بكم في سكراتش',5)],bird:[move(30),say('لنستمع لصوت العصفور'),sound('bird')],greet:[say('السلام عليكم'),move(30)],turn:[turn(40),say('أنا أستدير')],picnic:[say('لنقم بنزهة'),sound('door'),move(200)],loop:[repeat(10,move(5))],
+ walk:{title:'قطة تمشي',scene:'grass',x:-150,blocks:[flag,repeat(5,move(10),say('مرحبًا'))]},turns:{title:'كيفية الاستدارة',blocks:[flag,repeat(6,say('سأستدير إلى اليمين'),turn(15),say('سأستدير إلى اليسار'),turn(15,'ccw'))]},
+ line:[down,move(150)],square:[down,repeat(4,move(100),turn(90))],triangle:[down,repeat(3,move(100),turn(120))],
+ circle:[down,repeat(36,move(10),turn(10))],dashed:[{op:'color',n:16},repeat(3,repeat(4,down,move(10),up,move(10)),turn(120))],
+ 'review-dashes':{x:-170,blocks:[flag,{op:'erase'},{op:'size',n:2},{op:'color',n:77},repeat(5,down,move(30),up,move(30))]},
+ basketball:{scene:'basketball',blocks:[flag,repeat(10,down,move(10),sound('bounce'),up,move(10))]}
+};
+for(const task of tasks)test('Scratch textbook p'+task.page+' '+task.id,()=>{const model=examples[task.id];const s={...initial(),...(Array.isArray(model)?{blocks:[flag,...model]}:model)};assert.equal(grade(JSON.parse(JSON.stringify(s)),task.id).score,100);assert.ok(grade(initial(),task.id).score<100);});
+test('ordered behaviour, partial feedback and ignoring forged trace',()=>{
+ const s={...initial(),blocks:[flag,move(30),say('السلام عليكم')],score:100};assert.equal(grade(s,'greet').score,67);
+ assert.equal(grade({blocks:[move(30)],trace:[]},'greet').score,0);assert.equal(grade({...initial(),blocks:[flag,repeat(100,repeat(100,move(1)))]},'square').score,0);
+});
+test('pen states, nested loop, stamps, clear, width and turn direction',()=>{
+ const r=run({...initial(),blocks:[flag,down,move(20),{op:'erase'},turn(90,'ccw'),{op:'size',n:4},{op:'color',n:30},move(20),{op:'stamp'}]},'scratch');assert.equal(r.valid,true);assert.equal(r.stamps.length,1);assert.equal(r.segments.length,1);assert.equal(r.segments[0].color,30);assert.equal(r.segments[0].width,4);assert.equal(Math.round(r.y),-20);
+});
+test('different start positions and wait retained in playback',()=>{
+ const r=run({...initial(),x:-45,blocks:[flag,{op:'wait',n:2},move(30)]},'scratch');assert.equal(r.frames[0].startTime,2000);assert.equal(r.x,-15);
+});
+
+test('تستمر الكرة الأخرى بعد الصيد ويعود اتجاه الحركة عند الحافة',async()=>{
+ const {createMotionScene}=await import('./continuous.mjs');
+ const scene=createMotionScene([{...ball('basketBall'),x:220},{...ball('baseball'),x:-100}]);
+ scene.tick(0);scene.tick(160);scene.tick(320);
+ assert.ok(scene.sprites[0].angle===180||scene.sprites[0].angle===-180);
+ scene.click(0,321);scene.tick(321);
+ const [first,second]=scene.sprites.map(s=>s.x);scene.tick(1000);
+ assert.equal(scene.sprites[0].x,first);assert.notEqual(scene.sprites[1].x,second);
+});
+test('لا يتابع المرسل قبل انتهاء مقطع المستقبِل عند البث والانتظار',async()=>{
+ const {createMotionScene}=await import('./continuous.mjs');
+ const scene=createMotionScene([{blocks:[flag,{op:'broadcastWait',message:'دورك'},say('انتهى')]},{blocks:[{op:'receive',message:'دورك'},say('أجيب',1)]}]);
+ scene.tick(0);scene.tick(500);assert.equal(scene.sprites[0].speech,'');assert.equal(scene.sprites[1].speech,'أجيب');
+ scene.tick(1000);scene.tick(1016);assert.equal(scene.sprites[0].speech,'انتهى');
+});

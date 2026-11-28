@@ -1,0 +1,1 @@
+{"name":"maamel-classroom","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","test":"node --test","dev":"node scripts/dev.mjs"},"devDependencies":{"esbuild":"0.28.0"},"engines":{"node":">=24"}}
