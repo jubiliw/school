@@ -1,3 +1,4 @@
+import {raceRoutes} from './model.mjs'
 import {exercises} from './exercises.mjs'
 import {animals, apply, children, initial, pathOf, valid} from './model.mjs'
 
@@ -60,15 +61,22 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
   function take(type){if(commit({type,id:selected})){selected='';render();report(type==='trash'?'نُقل العنصر إلى السلة.':'استُعيد العنصر.')}} 
   function openDir(id,history=true){if(id!==dir&&history){backStack.push(dir);forwardStack=[]}dir=id;selected='';app='explorer';minimized=false;start=false;render()}
   function launch(id){paintFile=false;app=id;minimized=start=false;render()}
-  function openFile(id){
+  let raceStarted=null
+  function openFile(id,via=id){
     const n=lookup(id);if(!n)return
     if(dir==='bin'){selected=id;take('restore');return}
     if(n.kind==='shortcut'){
       const target=lookup(n.target)
       if(!target||target.kind==='shortcut'||pathOf(state,target.id).split(' / ')[0]===lookup('bin').name)return report('تعذر فتح الاختصار لأن العنصر الأصلي غير متاح.')
-      return openFile(target.id)
+      return openFile(target.id,id)
     }
     if(n.kind==='folder')return openDir(id)
+    if(taskId==='shortcut-race'&&id==='timing-file'&&raceStarted!==null){
+      const elapsed=Math.max(1,Math.round(performance.now()-raceStarted))
+      if(commit({type:'race-open',id:via,elapsed})){
+        raceStarted=null;render();report('زمن الفتح: '+(elapsed/1000).toFixed(2)+' ثانية')
+      }
+    }
     if(drive?.documentOf(n)){location.hash='lab/word/'+encodeURIComponent(n.id);return}
     if(n.kind==='drawing'){drawId=id;drawing=structuredClone(n.strokes);return launch('paint')}
     if(n.kind==='image'){
@@ -240,6 +248,14 @@ export function mount(host,previous,onChange=()=>{},taskId=previous?.task??'anim
     const shortcuts=h('div',undefined,'wm-shortcuts')
     for(const [title,action] of [['🗂 مستكشف الملفات',()=>openDir('docs')],['🗑 سلة المحذوفات',()=>openDir('bin')]])shortcuts.append(btn(title,action))
     for(const n of children(state,'desktop'))shortcuts.append(btn(icons[n.kind]+' '+n.name,()=>{dir='desktop';openFile(n.id)}))
+    if(taskId==='shortcut-race'){
+      shortcuts.append(btn(raceStarted===null?'ابدأ التوقيت':'أعد بدء التوقيت',()=>{
+        raceStarted=performance.now();app='';dir='desktop';selected='';backStack=[];forwardStack=[];render();report('افتح ملف الوقت بالطريقة المطلوبة.')
+      }))
+      for(const [route,label] of Object.entries(raceRoutes)){
+        if(state.timings?.[route])shortcuts.append(h('span',label+' · '+(state.timings[route]/1000).toFixed(2)+' ث'))
+      }
+    }
     bench.append(shortcuts)
     if(app&&!minimized){
       const win=h('section',undefined,'wm-window'+(maximized?' wm-max':'')),title=h('div',undefined,'wm-title');title.append(h('strong',apps[app]))

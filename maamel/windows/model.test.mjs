@@ -91,3 +91,22 @@ test('grade 5 picture shortcuts survive reopening and go to the bin independentl
  state=apply(state,{type:'trash',id:'bird'})
  assert.ok(grade(state,task).score<100)
 })
+test('timed routes require the moved original and links in the two textbook locations',()=>{
+ const task='shortcut-race'
+ let s=initial(task)
+ const run=op=>{s=apply(s,op)}
+ assert.throws(()=>run({type:'race-open',id:'timing-file',elapsed:900}))
+ run({type:'create',parent:'docs',kind:'folder',name:'الوقت'})
+ const parent=s.nodes.at(-1).id
+ run({type:'create',parent,kind:'folder',name:'تسجيلات'})
+ run({type:'move',id:'timing-file',parent:s.nodes.at(-1).id})
+ run({type:'race-open',id:'timing-file',elapsed:900})
+ for(const location of [parent,'desktop']){
+   run({type:'shortcut',id:'timing-file',parent:location})
+   const id=s.nodes.at(-1).id
+   run({type:'race-open',id,elapsed:600})
+   run({type:'trash',id})
+ }
+ assert.deepEqual(s.timings,{direct:900,folder:600,desktop:600})
+ assert.equal(grade(JSON.parse(JSON.stringify(s)),task).score,100)
+})

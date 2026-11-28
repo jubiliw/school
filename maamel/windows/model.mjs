@@ -11,7 +11,9 @@ const prompts = {
   continents:'أنشئ «قارات العالم» على سطح المكتب، وأضف آسيا وأستراليا وأفريقيا وأمريكا وأوروبا بداخله. أضف بلدك داخل آسيا، ثم جرّب نسخ مجلد بلد آخر ونقله وحذفه.',
   project:'أنشئ على سطح المكتب المستندات والصور ومقاطع الفيديو. داخل كل منها أنشئ مجلدين باسم المعلمين والطلبة. ارسم أجزاء الحاسب واحفظ الرسم واستخدمه خلفية.'
 }
+export const raceRoutes={direct:'مستكشف الملفات',folder:'اختصار مجلد الوقت',desktop:'اختصار سطح المكتب'}
 export const tasks = [
+  {id:'shortcut-race',title:'لعبة الاختصارات والتوقيت',page:'٤٩–٥٠',instructions:'أنشئ «الوقت» في المستندات و«تسجيلات» بداخله. انقل ملف الوقت إلى تسجيلات، ثم أنشئ له اختصارين في الوقت وعلى سطح المكتب. من سطح المكتب ابدأ توقيتًا لكل طريقة وافتح الملف بها. دوّن اسم الفريق والأزمنة في الملف ثم احذف الاختصارين.'},
   {id:'picture-shortcuts',title:'إنشاء اختصارات للصور',page:'٤٨',instructions:'افتح مجلد الصور في المستندات. اختر صورتين وأنشئ لكل منهما اختصارًا بجوارها وآخر على سطح المكتب. افتح أحد الاختصارات ثم احذف الاختصارات الأربعة وتحقق من بقاء الصورتين.'},
   {id:'hardware',title:'مكونات الحاسب واستخداماتها',page:'١٨–١٩',instructions:'افتح نشاط التصنيف. صنّف الأجهزة ثم اختر الأداة المناسبة لكل استخدام.'},
   {id:'filetypes',title:'الملفات والمجلدات والبرامج',page:'٢٩–٣٠',instructions:'افتح نشاط التصنيف. ميّز بين أنواع العناصر ثم تحقق من صلاحية أسماء المجلدات.'},
@@ -25,7 +27,7 @@ const folder=(id,parent,name)=>({id,parent,name,kind:'folder'})
 export function initial(task='animals'){
   return {version:1,task:tasks.some(t=>t.id===task)?task:'animals',answers:{},nodes:[
     folder('desktop',null,'سطح المكتب'),folder('docs',null,'المستندات'),folder('bin',null,'سلة المحذوفات'),
-    ...(task==='picture-shortcuts'?[folder('pictures','docs','الصور'),
+    ...(task==='shortcut-race'?[{id:'timing-file',kind:'text',parent:'docs',name:'G5.S1.1.3_Time.txt',content:'اسم الفريق: \nمستكشف الملفات: \nاختصار مجلد الوقت: \nاختصار سطح المكتب: '}]:task==='picture-shortcuts'?[folder('pictures','docs','الصور'),
       ...animals.map(a=>({id:a.id,parent:'pictures',name:a.name+'.png',kind:'image',asset:a.id}))]:task==='free'?[]:[folder('samples','docs',animalFolder),
     ...animals.map((a,i)=>({id:a.id,parent:'samples',kind:'image',name:'صورة '+(i+1)+'.png',asset:a.id}))])
   ],settings:{background:'jade',resolution:'1280×800',volume:60,clockOffset:0}}
@@ -86,6 +88,7 @@ export function valid(s){
       if(n.kind==='image'&&!animals.some(a=>n.asset===a.id))return false
       if(n.kind==='drawing'&&(!Array.isArray(n.strokes)||n.strokes.length>500||!n.strokes.every(st=>st&&/^#[0-9a-f]{6}$/i.test(st.color)&&Array.isArray(st.points)&&st.points.length>0&&st.points.length<=1000&&st.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(v=>Number.isFinite(v)&&v>=0&&v<=1)))))return false
     }
+    if(s.timings!==undefined&&(!s.timings||typeof s.timings!=='object'||Array.isArray(s.timings)||Object.entries(s.timings).some(([k,v])=>!Object.hasOwn(raceRoutes,k)||!Number.isSafeInteger(v)||v<1)))return false
     const alarm=s.settings.alarm
     if(alarm&&(!/^([01]\d|2[0-3]):[0-5]\d$/.test(alarm.time)||!['wave','bell','bird'].includes(alarm.tone)||typeof alarm.enabled!=='boolean'))return false
     if(s.answers!==undefined){
@@ -99,7 +102,11 @@ export function valid(s){
 }
 export function apply(state,op){
   const s=structuredClone(state), n=node(s,op.id), type=op.type
-  if(type==='answer'){
+  if(type==='race-open'){
+    const route=raceRoute(s,n)
+    if(!route||s.task!=='shortcut-race')err('أعد تجهيز ملف التوقيت والاختصارات.')
+    s.timings={...s.timings,[route]:op.elapsed}
+  }else if(type==='answer'){
     const q=Object.values(exercises).flat().find(q=>q.id===op.question&&q.options.includes(op.value));if(!q)err('اختيار غير متاح.')
     s.answers={...s.answers,[op.question]:op.value}
   }else if(type==='settings'){s.settings={...s.settings,...op.settings}}
@@ -141,12 +148,29 @@ export function apply(state,op){
   return s
 }
 const norm=s=>key(s).replace(/[أإآ]/g,'ا').replace(/[ًٌٍَُِّْـ]/g,'')
+function raceRoute(s,n){
+  const file=node(s,'timing-file')
+  if(file?.kind!=='text')return
+  const records=node(s,file.parent),time=node(s,records?.parent)
+  if(records?.name!=='تسجيلات'||time?.name!=='الوقت'||time.parent!=='docs')return
+  if(n?.id===file.id)return 'direct'
+  if(n?.kind==='shortcut'&&n.target===file.id){
+    if(n.parent===time.id)return 'folder'
+    if(n.parent==='desktop')return 'desktop'
+  }
+}
 export function grade(state,task='animals'){
   const s=valid(state)?state:initial(), criteria=[]
   const add=(label,v)=>criteria.push({label,passed:Boolean(v)})
   const sub=(id,name)=>children(s,id).find(n=>n.kind==='folder'&&norm(n.name)===norm(name))?.id
   if(exercises[task]&&Array.isArray(exercises[task])){
     for(const q of exercises[task])add(q.label,s.answers?.[q.id]===q.answer)
+  }else if(task==='shortcut-race'){
+    const file=node(s,'timing-file')
+    add('الملف الأصلي محفوظ في الوقت / تسجيلات',raceRoute(s,file)==='direct')
+    for(const [route,label] of Object.entries(raceRoutes))add('تسجيل زمن الفتح عبر '+label,!!s.timings?.[route])
+    const time=node(s,file?.parent)?.parent
+    for(const parent of [time,'desktop'])add('حذف الاختصار من '+(parent==='desktop'?'سطح المكتب':'مجلد الوقت'),children(s,'bin').some(n=>n.kind==='shortcut'&&n.target===file?.id&&n.originalParent===parent))
   }else if(task==='picture-shortcuts'){
     const removed=children(s,'bin').filter(n=>n.kind==='shortcut')
     const targets=animals.map(a=>a.id)
