@@ -91,6 +91,13 @@
       "lesson": "المعاملات الشرطية",
       "start": 182,
       "end": 192
+    },
+    {
+      "term": 1,
+      "unit": "البرمجة والتفاعل في سكراتش",
+      "lesson": "الحركة في سكراتش",
+      "start": 193,
+      "end": 206
     }
   ],
   "activities": [
@@ -233,6 +240,21 @@
       "program": "scratch",
       "task": "exam-result",
       "page": 192
+    },
+    {
+      "program": "review",
+      "task": "scratch-stop-scope",
+      "page": 203
+    },
+    {
+      "program": "review",
+      "task": "scratch-headings",
+      "page": 203
+    },
+    {
+      "program": "scratch",
+      "task": "arrow-cat",
+      "page": 205
     }
   ]
 }

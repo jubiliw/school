@@ -7,6 +7,8 @@ export const sounds=[['bird','العصفور'],['bounce','ارتداد الكر�
 export const poses=[['orange','قطة برتقالية'],['slate','قطة رمادية'],['sand','قطة رملية'],['hen-c','دجاجة · hen-c'],['hen-d','دجاجة · hen-d'],['fish','سمكة المهرج'],['puffer','السمكة المنتفخة'],['jelly','قنديل البحر'],['blueBalloon','بالون أزرق'],['yellowBalloon','بالون أصفر'],['purpleBalloon','بالون بنفسجي']];
 export const scratchTools=[
  ['flag','الأحداث','عند نقر العلم'],
+ ['key','الأحداث','عند ضغط مفتاح',choice('key','المفتاح','ArrowUp',[['ArrowUp','السهم الأعلى'],['ArrowDown','السهم الأسفل'],['ArrowRight','السهم الأيمن'],['ArrowLeft','السهم الأيسر']])],
+ ['point','الحركة','اتجه نحو الاتجاه',n('direction','درجة',90,-180,180)],['edge','الحركة','ارتد إذا كنت عند الحافة'],
  ['move','الحركة','تحرّك',movement],['cw','الحركة','استدر يمينًا',degree],['ccw','الحركة','استدر يسارًا',degree],
  ['clicked','الأحداث','عند نقر هذا الكائن'],
  ['ask','الاستشعار','اسأل وانتظر',{key:'text',type:'text',label:'السؤال',value:'كم عمرك؟'}],

@@ -6,6 +6,7 @@ const flag={op:'flag'},down={op:'down'},up={op:'up'};
 const move=n=>({op:'move',n}),turn=(n,op='cw')=>({op,n}),say=(text,seconds=2)=>({op:'say',text,seconds}),sound=sound=>({op:'sound',sound}),repeat=(n,...body)=>({op:'repeat',n,body});
 const balloon=costume=>({costume,blocks:[{op:'clicked'},{op:'ask',text:'ما لوني؟'},{op:'reply',prefix:'لوني ',suffix:'',seconds:3}]});
 const examples={
+ 'arrow-cat':{blocks:[['ArrowUp',0,'أعلى'],['ArrowDown',180,'أسفل'],['ArrowRight',90,'يمين'],['ArrowLeft',-90,'يسار']].flatMap(([key,direction,text])=>[{op:'key',key},{op:'point',direction},move(10),say(text)])},
  'balloon-colors':{scene:'light',...balloon('blueBalloon'),others:[balloon('yellowBalloon'),balloon('purpleBalloon')]},
  'age-dialog':{blocks:[{op:'clicked'},{op:'ask',text:'كم عمرك؟'},{op:'reply',prefix:'عمرك ',suffix:' سنة'}]},
  'exam-result':[{op:'ask',text:'كم درجتك؟'},...['lt','eq','gt'].map(comparison=>({op:'ifAnswer',comparison,value:50,body:[say(comparison==='lt'?'راسب':'ناجح')]}))],

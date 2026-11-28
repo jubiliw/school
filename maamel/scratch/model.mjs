@@ -1,5 +1,6 @@
 import {run,assess,near,polygon} from './runtime.mjs';
 export const tasks=[
+ ['arrow-cat','تحريك القطة بالأسهم',205,'برمج القطة لتتحرك في الاتجاه الذي تضغط سهمه وتعلن اتجاهها. اختبر المفاتيح الأربعة على المنصة.'],
  ['balloon-colors','ألوان البالونات',190,'اختر خلفية الضوء وأضف ثلاثة بالونات مختلفة الألوان. عند نقر كل بالون يسأل عن لونه ثم يعلن إجابتك ثلاث ثوان.'],
  ['age-dialog','حوار عن العمر',189,'عند نقر الكائن اسأل المستخدم عن عمره، ثم اعرض إجابته ضمن جملة.'],
  ['exam-result','نتيجة الاختبار',192,'اسأل عن الدرجة. اعرض راسب للدرجة الأقل من ٥٠ وناجح عند ٥٠ أو أعلى.'],
@@ -28,6 +29,14 @@ export const initial=()=>({v:1,title:'مشروع جديد',x:0,y:0,scene:'plain'
 const norm=t=>String(t??'').replace(/[أإآ]/g,'ا').replace(/[ً-ْـ!؟.]/g,'').trim();
 export function grade(s,id){
  const result=run(s,'scratch'), a=result.trace;
+ if(id==='arrow-cat'){
+  const directions=[['ArrowUp',0,-1,'اعلى'],['ArrowDown',0,1,'اسفل'],['ArrowRight',1,0,'يمين'],['ArrowLeft',-1,0,'يسار']];
+  const checks=[];
+  for(const [key,dx,dy,name] of directions){
+   const r=run({...s,x:0,y:0},'scratch',[],key);
+   checks.push(['حركة '+name,r.valid&&(dx?r.x*dx>0&&near(r.y,0):r.y*dy>0&&near(r.x,0))],['قول الاتجاه '+name,r.valid&&r.trace.some(e=>e.op==='say'&&norm(e.text).includes(name))]);
+  }return assess(checks);
+ }
  if(id==='balloon-colors'){
   const actors=[s,...(Array.isArray(s?.others)?s.others.slice(0,11):[])];
   const checks=[['خلفية الضوء',s?.scene==='light'],['إزالة القطة من المنصة',actors.length===3&&actors.every(a=>a?.costume?.endsWith('Balloon'))]];

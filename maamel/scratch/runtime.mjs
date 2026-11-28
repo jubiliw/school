@@ -7,13 +7,19 @@ export function assess(checks) {
   return {score:Math.round(100*(checks.length-remaining.length)/checks.length),feedback:remaining.length?'تبقّى: '+remaining.join('، '):'اكتملت معايير النشاط.'};
 }
 export function run(state, kind, answers=[],event='flag') {
-  const robot=kind==='robot', blocks=state?.blocks;
+  const robot=kind==='robot', source=state?.blocks;
   const origin={x:number(state?.x,0,-220,220),y:number(state?.y,0,-160,160),angle:0};
   let {x,y,angle}=origin, down=robot, color=60, width=2, time=0, visits=0;
   let costume=state?.costume,answer='',answerIndex=0,pending=null;
   let trace=[], frames=[], segments=[], stamps=[];
-  if(!Array.isArray(blocks) || blocks.length>160) return {valid:false,trace,frames,segments,stamps,origin};
-  const valid=robot || blocks[0]?.op===event&&['flag','clicked'].includes(event);
+  if(!Array.isArray(source) || source.length>160) return {valid:false,trace,frames,segments,stamps,origin};
+  const hats=['flag','clicked','key'];
+  const matches=b=>b?.op==='key'?b.key===event:hats.includes(b?.op)&&b.op===event;
+  let active=robot;const blocks=robot?source:source.filter(b=>{
+    if(hats.includes(b?.op))active=matches(b);
+    return active;
+  });
+  const valid=robot||blocks.length>0;
   const move=(length, delta=0,duration=160)=>{
     const start={x,y,angle}; const slice=rad(delta);
     if(Math.abs(slice)<1e-8){x+=length*Math.cos(rad(angle));y+=length*Math.sin(rad(angle));}
@@ -34,7 +40,14 @@ export function run(state, kind, answers=[],event='flag') {
       const e={op:b.op,start:time,x,y,angle,n};
       trace.push(e);
       switch(b.op){
-      case 'flag':case 'clicked': break;
+      case 'point':move(0,number(b.direction,90,-180,180)-90-angle,0);break;
+      case 'edge':{
+        let dx=Math.cos(rad(angle)),dy=Math.sin(rad(angle));
+        if((x>=230&&dx>0)||(x<=-230&&dx<0))dx=-dx;
+        if((y>=170&&dy>0)||(y<=-170&&dy<0))dy=-dy;
+        move(0,Math.atan2(dy,dx)*180/Math.PI-angle,0);break;
+      }
+      case 'key':case 'flag':case 'clicked': break;
       case 'ask':
         e.text=String(b.text??'').slice(0,180);
         if(answerIndex>=answers.length){pending={text:e.text,time,index:answerIndex};throw pending;}

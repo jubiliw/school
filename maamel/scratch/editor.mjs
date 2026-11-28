@@ -1,4 +1,5 @@
 import {sceneControls,sensors,validObjects} from '../robot/scene.mjs';
+import {mountPlanner,validPlan} from './planner.mjs';
 import {run} from './runtime.mjs';
 import {chromeStyle} from './chrome-style.mjs';
 import {backdropLibrary,costumePane,menu,modal,soundPane} from './chrome.mjs';
@@ -85,7 +86,7 @@ export function mountEditor(host,previous,onChange,kind,initial){
  canvas.addEventListener('pointerup',e=>{
   if(!robot&&press&&!press.drag){const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*480-240,y=(e.clientY-r.top)/r.height*360-180;
    const actors=[state,...(state.others??[])],index=actors.findLastIndex(a=>Math.hypot(a.x-x,a.y-y)<24);
-   if(index>=0&&actors[index].blocks[0]?.op==='clicked')play(index);else setPoint(e);
+   if(index>=0&&actors[index].blocks.some(b=>b.op==='clicked'))play(index);else setPoint(e);
   }press=null;
  });
  canvas.addEventListener('pointermove',e=>{if(press&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>4)press.drag=true;if(press?.drag&&canvas.hasPointerCapture(e.pointerId))setPoint(e);});
@@ -100,9 +101,10 @@ export function mountEditor(host,previous,onChange,kind,initial){
   const tabButton=(id,name)=>{const b=button(name,()=>pickTab(id));b.setAttribute('aria-pressed',String(tab===id));tabs.append(b);};
   tabButton('code',robot?'المقطع البرمجي · NEPO':'المقاطع البرمجية');
   if(robot){tabButton('config','تهيئة الروبوت');const sim=button('SIM · المحاكاة',()=>{if(tab!=='code'){tab='code';simOpen=true;}else simOpen=!simOpen;refresh();});sim.setAttribute('aria-pressed',String(simOpen&&tab==='code'));tabs.append(sim);}
-  else{tabButton('costumes','المظاهر');tabButton('sounds','الأصوات');}
+  else{tabButton('costumes','المظاهر');tabButton('sounds','الأصوات');tabButton('plan','الخوارزمية والمخطط');}
   grid.hidden=tab!=='code';studio.hidden=tab==='code';view.hidden=robot&&!simOpen;
   if(robot){grid.classList.toggle('no-sim',!simOpen);}
+  if(tab==='plan')mountPlanner(studio,state,persist);
   if(tab==='costumes')costumePane(studio,state,id=>{state.costume=id;changed();refresh();});
   if(tab==='sounds'){const clips=state.clips??['cat'];soundPane(studio,clips,previewSound,id=>{state.clips=[...new Set([...clips,id])];changed();refresh();},id=>{
     if(containsSound(state.blocks,id)){status.textContent='هذا الصوت مستخدم في المقطع.';const msg=el('p',status.textContent);studio.append(msg);return;}
@@ -116,11 +118,16 @@ export function mountEditor(host,previous,onChange,kind,initial){
  function stop(){promptForm?.remove();promptForm=null;cancelAnimationFrame(frame);frame=0;status.textContent='متوقف';}
  function redraw(){bubble.textContent=renderStage(canvas,state,kind,result,clock,showSensors);}
  function reset(){stop();result=null;clock=0;status.textContent='جاهز للتشغيل';positions.x.value=state.x;positions.y.value=-state.y;redraw();}
- function play(click){stop();clock=0;
+ function play(click,key){
+  const oldRuns=result?[result,...(result.others??[])]:[];
+  stop();clock=0;
   const actors=robot?[state]:[state,...(state.others??[])],answers=actors.map(()=>[]);
   let runs,duration,sounds;
   function simulate(){
-   runs=actors.map((actor,i)=>run(actor,kind,answers[i],Number.isInteger(click)?(i===click?'clicked':'inactive'):'flag'));result=runs[0];result.others=runs.slice(1);
+   runs=actors.map((actor,i)=>{
+    const last=oldRuns[i],start=key&&last?{...actor,x:last.x??last.origin.x,y:last.y??last.origin.y}:actor;
+    return run(start,kind,answers[i],key??(Number.isInteger(click)?(i===click?'clicked':'inactive'):'flag'));
+   });result=runs[0];result.others=runs.slice(1);
    duration=Math.max(0,...runs.filter(r=>r.valid).map(r=>r.time));
    sounds=runs.filter(r=>r.valid).flatMap(r=>r.trace.filter(e=>e.op==='sound')).sort((a,b)=>a.start-b.start);
   }
@@ -141,7 +148,7 @@ export function mountEditor(host,previous,onChange,kind,initial){
  function add(op,list=target,at){const def=byOp.get(op);if(!def)return;if(total(state.blocks)>=160){status.textContent='بلغ المقطع الحد الأقصى للبنات.';return;}const block=newBlock(def);if(op==='sound')block.sound=(state.clips??['cat'])[0]??'cat';list.splice(at??list.length,0,block);changed();refresh();}
  function total(items){return items.reduce((sum,b)=>sum+1+(Array.isArray(b.body)?total(b.body):0),0);}
  function isProject(p){function valid(list,depth){return depth<=5&&Array.isArray(list)&&list.length<=160&&list.every(b=>b&&byOp.has(b.op)&&(!['repeat','ifAnswer'].includes(b.op)||valid(b.body,depth+1))&&byOp.get(b.op).slice(3).every(f=>f.type==='text'?typeof b[f.key]==='string'&&b[f.key].length<=180:f.type==='select'?f.options.some(([k])=>k===b[f.key]):Number.isFinite(b[f.key])&&b[f.key]>=f.min&&b[f.key]<=f.max));}
- return p&&(p.others===undefined||!robot&&Array.isArray(p.others)&&p.others.length<=11&&p.others.every(a=>a&&a.others===undefined&&isProject({...a,scene:p.scene,title:p.title})))&&(!robot||validObjects(p.objects))&&(p.clips===undefined||Array.isArray(p.clips)&&p.clips.length<=4&&p.clips.every(v=>['bird','bounce','cat','door'].includes(v)))&&(p.costume===undefined||poses.some(([id])=>id===p.costume))&&typeof p.title==='string'&&p.title.length<=80&&Number.isFinite(p.x)&&Math.abs(p.x)<=220&&Number.isFinite(p.y)&&Math.abs(p.y)<=160&&scenes[kind].some(([k])=>k===p.scene)&&valid(p.blocks,0)&&total(p.blocks)<=160;}
+ return p&&validPlan(p.plan)&&(p.others===undefined||!robot&&Array.isArray(p.others)&&p.others.length<=11&&p.others.every(a=>a&&a.others===undefined&&isProject({...a,scene:p.scene,title:p.title})))&&(!robot||validObjects(p.objects))&&(p.clips===undefined||Array.isArray(p.clips)&&p.clips.length<=4&&p.clips.every(v=>['bird','bounce','cat','door'].includes(v)))&&(p.costume===undefined||poses.some(([id])=>id===p.costume))&&typeof p.title==='string'&&p.title.length<=80&&Number.isFinite(p.x)&&Math.abs(p.x)<=220&&Number.isFinite(p.y)&&Math.abs(p.y)<=160&&scenes[kind].some(([k])=>k===p.scene)&&valid(p.blocks,0)&&total(p.blocks)<=160;}
  function drop(list,container,at){container.ondragover=e=>{e.preventDefault();e.stopPropagation();};container.ondrop=e=>{e.preventDefault();e.stopPropagation();const op=e.dataTransfer.getData('application/x-maamel-op');
  if(dragged&&e.dataTransfer.getData('application/x-maamel-move')){
   const {list:old,block}=dragged;dragged=null;const inside=b=>b?.body===list||b?.body?.some(inside);
@@ -165,6 +172,14 @@ export function mountEditor(host,previous,onChange,kind,initial){
   cmds.append(up,down,button('مضاعفة',()=>{if(total(state.blocks)+total([b])>160)return;list.splice(i+1,0,structuredClone(b));changed();refresh();}),button('حذف',()=>{list.splice(i,1);target=state.blocks;changed();refresh();}));const edit=el('details');edit.className='block-commands';const more=el('summary','خيارات اللبنة');edit.append(more,cmds);node.append(edit);node.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();edit.open=true;};
   if(['repeat','ifAnswer'].includes(b.op)){const nest=el('div');nest.className='nest';if(depth<5){nest.append(button(b.op==='repeat'?'أضف لبنات داخل التكرار':'أضف لبنات عند تحقق الشرط',()=>{target=b.body;refresh();}));drop(b.body,nest);}renderList(b.body,nest,depth+1);node.append(nest);}parent.append(node);
  }}
- const onKey=e=>{if(e.key==='Escape'){view.classList.remove('expanded');expand.textContent='تكبير المنصة';for(const m of root.querySelectorAll('.block-menu'))m.open=false;}};
+ const arrows=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+ if(!robot){
+  canvas.tabIndex=0;
+  const pad=el('div');pad.className='bar';pad.setAttribute('aria-label','مفاتيح المنصة');
+  for(const [i,key] of arrows.entries())pad.append(button(['↑ أعلى','↓ أسفل','← يسار','→ يمين'][i],()=>pressArrow(key)));
+  view.append(pad);
+ }
+ function pressArrow(key){if(!promptForm&&[state,...(state.others??[])].some(actor=>actor.blocks.some(b=>b.op==='key'&&b.key===key))){play(null,key);return true;}return false;}
+ const onKey=e=>{if(!robot&&arrows.includes(e.key)&&!e.target.closest('input,select,textarea')&&pressArrow(e.key))e.preventDefault();if(e.key==='Escape'){view.classList.remove('expanded');expand.textContent='تكبير المنصة';for(const m of root.querySelectorAll('.block-menu'))m.open=false;}};
  root.addEventListener('keydown',onKey);refresh();reset();return ()=>{root.removeEventListener('keydown',onKey);stop();audio?.close().catch(()=>{});};
 }
